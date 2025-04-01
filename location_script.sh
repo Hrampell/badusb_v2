@@ -1,20 +1,31 @@
 #!/bin/bash
 # This script retrieves your geolocation, opens a map with your coordinates,
-# sets your system volume to maximum, speaks a custom message, and sends the information
-# to a Discord webhook.
+# sets your system volume to maximum, speaks a custom message (if provided),
+# and sends the information (with a timestamp and username) to a Discord webhook.
 #
 # Requirements:
 # - macOS
-# - CoreLocationCLI installed (brew install corelocationcli)
+# - Homebrew installed (https://brew.sh)
+# - CoreLocationCLI installed (this script will attempt to auto-install it if missing)
 #
 # Usage:
 #   ./location_script.sh "Your custom message here"
 # If no message is provided, a default message is used.
 
-# Verify that CoreLocationCLI is installed
-if ! command -v CoreLocationCLI &> /dev/null; then
-    echo "CoreLocationCLI is not installed. Please install it using: brew install corelocationcli"
+# Check if Homebrew is installed
+if ! command -v brew &> /dev/null; then
+    echo "Homebrew is not installed. Please install Homebrew first."
     exit 1
+fi
+
+# Check if CoreLocationCLI is installed, if not, attempt to install it via Homebrew.
+if ! command -v CoreLocationCLI &> /dev/null; then
+    echo "CoreLocationCLI not found. Attempting to install it via Homebrew..."
+    brew install corelocationcli
+    if ! command -v CoreLocationCLI &> /dev/null; then
+        echo "Failed to install CoreLocationCLI. Please install it manually."
+        exit 1
+    fi
 fi
 
 # Retrieve geolocation using CoreLocationCLI
@@ -27,7 +38,7 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 
 echo "Your location: Latitude $latitude, Longitude $longitude"
 
-# Construct Google Maps URL and open it
+# Construct Google Maps URL and open it in the default browser
 map_url="https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}"
 echo "Opening map: $map_url"
 open "$map_url"
