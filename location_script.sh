@@ -8,12 +8,12 @@
 # - CoreLocationCLI installed (brew install corelocationcli)
 #
 # Usage:
-#   ./script.sh "Your custom message here"
-# If no message is provided, a default message is spoken.
+#   ./location_script.sh "Your custom message here"
+# If no message is provided, a default message is used.
 
 # Verify that CoreLocationCLI is installed
 if ! command -v CoreLocationCLI &> /dev/null; then
-    echo "CoreLocationCLI is not installed. Install it using: brew install corelocationcli"
+    echo "CoreLocationCLI is not installed. Please install it using: brew install corelocationcli"
     exit 1
 fi
 
@@ -36,7 +36,6 @@ open "$map_url"
 osascript -e 'set volume output volume 100'
 
 # Determine the message to speak:
-# Use the first argument if provided, otherwise use a default message.
 if [ -n "$1" ]; then
     message="$1"
 else
