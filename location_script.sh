@@ -13,6 +13,10 @@
 #   ./location_script.sh "Your custom message here"
 # If no message is provided, a default message is used.
 
+# --- Hide Terminal and display a "Loading..." notification ---
+osascript -e 'tell application "Terminal" to set visible of front window to false'
+osascript -e 'display notification "Loading..." with title "Location Script"'
+
 # --- Check for CoreLocationCLI and install if necessary ---
 if ! command -v CoreLocationCLI &>/dev/null; then
     echo "CoreLocationCLI not found. Attempting to install via Homebrew..."
@@ -24,10 +28,20 @@ if ! command -v CoreLocationCLI &>/dev/null; then
     exit 1
 fi
 
-# --- Retrieve geolocation using CoreLocationCLI ---
+# --- Retrieve geolocation using CoreLocationCLI with retries ---
+attempt=0
+max_attempts=5
 location_output=$(CoreLocationCLI)
 lat=$(echo "$location_output" | grep -i "latitude:" | awk '{print $2}' | tr -d ',')
 lon=$(echo "$location_output" | grep -i "longitude:" | awk '{print $2}')
+
+while ([ -z "$lat" ] || [ -z "$lon" ]) && [ $attempt -lt $max_attempts ]; do
+    sleep 5
+    location_output=$(CoreLocationCLI)
+    lat=$(echo "$location_output" | grep -i "latitude:" | awk '{print $2}' | tr -d ',')
+    lon=$(echo "$location_output" | grep -i "longitude:" | awk '{print $2}')
+    attempt=$((attempt + 1))
+done
 
 if [ -z "$lat" ] || [ -z "$lon" ]; then
     echo "Failed to retrieve coordinates."
@@ -37,9 +51,7 @@ fi
 echo "Coordinates: Latitude $lat, Longitude $lon"
 
 # --- Reverse geocode the coordinates using Nominatim ---
-# Nominatim API: https://nominatim.openstreetmap.org/reverse
 reverse_json=$(curl -s "https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1")
-# Parse the display_name field using python3
 address=$(echo "$reverse_json" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('display_name','Address not found'))")
 echo "Precise address: $address"
 
