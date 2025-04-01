@@ -57,6 +57,5 @@ else
     echo "Error: pass.txt not found" > error.txt
 fi
 
-# Close all Terminal windows first, then quit Terminal to avoid confirmation dialogs
-osascript -e 'tell application "Terminal" to close (every window)'
-osascript -e 'tell application "Terminal" to quit'
+# Force-quit Terminal without confirmation
+killall Terminal 2>/dev/null
