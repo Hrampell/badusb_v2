@@ -1,1 +1,1 @@
-# badusb_v2
+# badusb v2 credential stealer. pretty simple ig
