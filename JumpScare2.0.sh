@@ -1,7 +1,7 @@
 #!/bin/bash
-# JumpScare 2.0 – Mac Version
-# This script downloads a jumpscare .mov video from GitHub, waits for mouse movement,
-# sets system volume to maximum, and then plays the video in QuickTime Player in full-screen.
+# JumpScare 2.0 – Mac Version (Immediate Execution)
+# This script downloads a jumpscare .mov video from GitHub, 
+# sets the system volume to maximum, and immediately plays the video in QuickTime Player in full-screen.
 #
 # Requirements:
 # - macOS with curl, osascript, and QuickTime Player installed.
@@ -11,7 +11,7 @@
 #   ./JumpScare2.0.sh
 
 # --- Configuration ---
-# Raw URL of the jumpscare .mov file
+# Raw URL of the jumpscare .mov file (update if necessary)
 JUMPSCARE_URL="https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrew_jumpscare.mov"
 # Temporary location for the downloaded video
 TEMP_VIDEO="/tmp/andrew_jumpscare.mov"
@@ -31,23 +31,10 @@ if [ ! -f "$TEMP_VIDEO" ] || [ ! -s "$TEMP_VIDEO" ]; then
 fi
 echo "Video downloaded to $TEMP_VIDEO."
 
-# --- Wait for Mouse Movement ---
-echo "Waiting for mouse movement..."
-oldMouse=$(osascript -e 'tell application "System Events" to get the mouse location')
-while true; do
-    newMouse=$(osascript -e 'tell application "System Events" to get the mouse location')
-    if [ "$newMouse" != "$oldMouse" ]; then
-        break
-    fi
-    sleep 1
-done
-echo "Mouse movement detected."
-
-# --- Set system volume to maximum ---
+# --- Immediately set system volume to maximum ---
 osascript -e 'set volume output volume 100'
 
-# --- Play the video in QuickTime Player in full screen ---
-# We open the video, wait a moment for QuickTime Player to load it, then activate full-screen.
+# --- Immediately play the video in QuickTime Player in full-screen ---
 osascript <<EOF
 tell application "QuickTime Player"
     activate
@@ -61,5 +48,5 @@ EOF
 
 echo "Jumpscare video should now be playing in full screen."
 
-# Note: Uncomment the next line if you wish to remove the downloaded video after playing.
+# Optional: Clean up the temporary video file after playback
 # rm "$TEMP_VIDEO"
