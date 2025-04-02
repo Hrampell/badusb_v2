@@ -29,7 +29,8 @@ repeat until validInput
             set validInput to true
         end if
     on error
-        do shell script "shutdown -h now"
+        -- Use proper macOS shutdown command
+        do shell script "sudo /sbin/shutdown -h now" with administrator privileges
         return "CANCEL_SHUTDOWN_INITIATED"
     end try
 end repeat
