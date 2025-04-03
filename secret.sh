@@ -1,5 +1,8 @@
 #!/bin/bash
-# Rick Astley in your Terminal (modified for testing and detached audio)
+# Rick Astley in your Terminal (modified for signal-based stop)
+# This script writes its PID to /tmp/secret.pid so that you can stop it with a SIGUSR1 signal.
+echo $$ > /tmp/secret.pid
+
 version='1.2-test-detached'
 rick='https://keroserene.net/lol'
 video="$rick/astley80.full.bz2"
@@ -22,6 +25,18 @@ obtainium() {
     echo "No internet command available." && exit 1
   fi
 }
+
+# Function to clean up audio processes.
+cleanup() {
+  for pid in "${audpids[@]}"; do
+    kill "$pid" 2>/dev/null
+  done
+}
+
+# Trap SIGUSR1 to stop audio and exit.
+trap "stop_audio=1; cleanup; exit" SIGUSR1
+# Also trap other termination signals.
+trap "cleanup; exit" SIGHUP TERM INT EXIT
 
 # Clear the screen.
 echo -en "\033[2J\033[H"
@@ -50,21 +65,6 @@ volume_loop() {
 volume_loop &
 volpid=$!
 
-# Background monitor to watch for "sydneysweeny" typed in the terminal.
-monitor_stop() {
-  while read -r line < /dev/tty; do
-    if [ "$line" = "sydneysweeny" ]; then
-      stop_audio=1
-      for pid in "${audpids[@]}"; do
-        kill "$pid" 2>/dev/null
-      done
-      break
-    fi
-  done
-}
-monitor_stop &
-monpid=$!
-
 # Function to play a single audio instance in detached mode.
 play_single_audio() {
   if has afplay; then
@@ -87,4 +87,4 @@ for ((i=1; i<=5; i++)); do
   sleep 5
 done
 
-# The script exits here; the detached audio processes will continue running if the terminal is closed.
+# The script exits here, but the detached audio processes continue running.
