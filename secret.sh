@@ -1,9 +1,9 @@
 #!/bin/bash
-# Rick Astley in your Terminal (modified for signal-based stop)
-# This script writes its PID to /tmp/secret.pid so that you can stop it with a SIGUSR1 signal.
+# Rick Astley in your Terminal (modified for SIGUSR1 stop and fixed volume reset)
+# Writes its own PID to /tmp/secret.pid so that you can stop it with SIGUSR1.
 echo $$ > /tmp/secret.pid
 
-version='1.2-test-detached'
+version='1.2-test-sigusr1'
 rick='https://keroserene.net/lol'
 video="$rick/astley80.full.bz2"
 audio_gsm="$rick/roll.gsm"
@@ -26,17 +26,18 @@ obtainium() {
   fi
 }
 
-# Function to clean up audio processes.
+# Cleanup function: kill all audio processes and the volume loop.
 cleanup() {
   for pid in "${audpids[@]}"; do
     kill "$pid" 2>/dev/null
   done
+  kill "$volpid" 2>/dev/null
 }
 
-# Trap SIGUSR1 to stop audio and exit.
-trap "stop_audio=1; cleanup; exit" SIGUSR1
+# Trap SIGUSR1 to stop audio and the volume-reset loop.
+trap 'stop_audio=1; cleanup; exit' SIGUSR1
 # Also trap other termination signals.
-trap "cleanup; exit" SIGHUP TERM INT EXIT
+trap 'cleanup; exit' SIGHUP TERM INT EXIT
 
 # Clear the screen.
 echo -en "\033[2J\033[H"
@@ -87,4 +88,4 @@ for ((i=1; i<=5; i++)); do
   sleep 5
 done
 
-# The script exits here, but the detached audio processes continue running.
+# The script exits here, leaving the detached audio processes running.
