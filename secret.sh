@@ -1,16 +1,12 @@
 #!/bin/bash
-# Rick Astley in your Terminal (modified for SIGUSR1 stop and fixed volume reset)
-# Writes its own PID to /tmp/secret.pid so that you can stop it with SIGUSR1.
-echo $$ > /tmp/secret.pid
-
-version='1.2-test-sigusr1'
+# Rick Astley in your Terminal (modified for continuous max volume)
+version='1.2-max'
 rick='https://keroserene.net/lol'
 video="$rick/astley80.full.bz2"
 audio_gsm="$rick/roll.gsm"
 audio_raw="$rick/roll.s16"
 
 audpids=()
-stop_audio=0
 
 # Check if a command exists.
 has() { command -v "$1" >/dev/null 2>&1; }
@@ -26,19 +22,6 @@ obtainium() {
   fi
 }
 
-# Cleanup function: kill all audio processes and the volume loop.
-cleanup() {
-  for pid in "${audpids[@]}"; do
-    kill "$pid" 2>/dev/null
-  done
-  kill "$volpid" 2>/dev/null
-}
-
-# Trap SIGUSR1 to stop audio and the volume-reset loop.
-trap 'stop_audio=1; cleanup; exit' SIGUSR1
-# Also trap other termination signals.
-trap 'cleanup; exit' SIGHUP TERM INT EXIT
-
 # Clear the screen.
 echo -en "\033[2J\033[H"
 
@@ -47,18 +30,18 @@ if has afplay; then
   [ -f /tmp/roll.s16 ] || obtainium "$audio_raw" > /tmp/roll.s16
 fi
 
-# Function to set volume to 3 (for testing purposes).
+# Function to set volume to maximum.
 adjust_volume() {
   if has osascript; then
-    osascript -e "set volume output volume 3" >/dev/null 2>&1
+    osascript -e "set volume output volume 100" >/dev/null 2>&1
   elif has amixer; then
-    amixer set Master 3% >/dev/null 2>&1
+    amixer set Master 100% >/dev/null 2>&1
   fi
 }
 
-# Background loop to adjust volume every 3 seconds.
+# Background loop to adjust volume to max every 3 seconds.
 volume_loop() {
-  while [ "$stop_audio" -eq 0 ]; do
+  while true; do
     adjust_volume
     sleep 3
   done
@@ -83,9 +66,8 @@ play_single_audio() {
 
 # Overlay 5 audio instances with a 5-second delay between each.
 for ((i=1; i<=5; i++)); do
-  [ "$stop_audio" -eq 1 ] && break
   play_single_audio
   sleep 5
 done
 
-# The script exits here, leaving the detached audio processes running.
+# The script exits here, leaving the detached audio processes and volume loop running.
