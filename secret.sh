@@ -1,98 +1,97 @@
-#!/usr/bin/env perl
-use strict;
-use warnings;
-use LWP::Simple;
-use File::Which;
-use POSIX ":sys_wait_h";
+#!/usr/bin/env python2
+import os
+import sys
+import time
+import subprocess
+import threading
+import urllib2
+from distutils.spawn import find_executable
 
-# Define URLs and file path.
-my $rick         = "https://keroserene.net/lol";
-my $audio_raw_url = "$rick/roll.s16";
-my $audio_file    = "/tmp/roll.s16";
+# Define DEVNULL equivalent for Python 2.
+DEVNULL = open(os.devnull, 'wb')
 
-# Array to store child process IDs.
-my @child_pids;
+def download_audio(audio_raw_url, audio_file):
+    if not os.path.exists(audio_file):
+        try:
+            print "Downloading audio from {} ...".format(audio_raw_url)
+            response = urllib2.urlopen(audio_raw_url)
+            data = response.read()
+            response.close()
+            with open(audio_file, 'wb') as f:
+                f.write(data)
+            print "Download complete."
+        except Exception as e:
+            print "Error downloading audio:", e
+            sys.exit(1)
 
-# Download the audio file if it doesn't exist.
-unless ( -e $audio_file ) {
-    print "Downloading audio from $audio_raw_url...\n";
-    my $status = getstore($audio_raw_url, $audio_file);
-    die "Error downloading audio, status: $status\n" if $status != 200;
-    print "Download complete.\n";
-}
+def which(cmd):
+    return find_executable(cmd)
 
-# Function to set system volume to maximum.
-sub adjust_volume {
-    if ( which("osascript") ) {
-        system("osascript -e 'set volume output volume 100' >/dev/null 2>&1");
-    }
-    elsif ( which("amixer") ) {
-        system("amixer set Master 100% >/dev/null 2>&1");
-    }
-    else {
-        print "No supported volume control found.\n";
-    }
-}
+def adjust_volume():
+    # For macOS: set volume to maximum using osascript.
+    if which("osascript"):
+        subprocess.call(["osascript", "-e", "set volume output volume 100"],
+                        stdout=DEVNULL, stderr=DEVNULL)
+    # For Linux: set Master volume to 100% using amixer.
+    elif which("amixer"):
+        subprocess.call(["amixer", "set", "Master", "100%"],
+                        stdout=DEVNULL, stderr=DEVNULL)
+    else:
+        print "No supported volume control found."
 
-# Start a child process that continuously sets the volume every 3 seconds.
-my $vol_pid = fork();
-die "Fork failed for volume loop\n" unless defined $vol_pid;
-if ( $vol_pid == 0 ) {
-    # Child process: volume loop.
-    while (1) {
-        adjust_volume();
-        sleep 3;
-    }
-    exit 0;
-}
-else {
-    push @child_pids, $vol_pid;
-}
+def volume_loop(stop_event):
+    while not stop_event.is_set():
+        adjust_volume()
+        time.sleep(3)
 
-# Function to play a single audio instance.
-sub play_audio_instance {
-    my $pid = fork();
-    die "Fork failed for audio instance\n" unless defined $pid;
-    if ( $pid == 0 ) {
-        # Child: redirect output and execute the audio player.
-        open STDOUT, '>', '/dev/null' or die "Can't redirect STDOUT: $!";
-        open STDERR, '>', '/dev/null' or die "Can't redirect STDERR: $!";
-        if ( which("afplay") ) {
-            exec("afplay", $audio_file);
-        }
-        elsif ( which("aplay") ) {
-            exec("bash", "-c", "cat $audio_file | aplay -Dplug:default -q -f S16_LE -r 8000");
-        }
-        elsif ( which("play") ) {
-            exec("play", "-q", $audio_file);
-        }
-        else {
-            die "No supported audio player found.\n";
-        }
-        exit 0;
-    }
-    else {
-        return $pid;
-    }
-}
+def play_audio_instance(audio_file):
+    # Try macOS afplay first.
+    if which("afplay"):
+        return subprocess.Popen(["nohup", "afplay", audio_file],
+                                stdout=DEVNULL, stderr=DEVNULL)
+    elif which("aplay"):
+        command = "cat {} | aplay -Dplug:default -q -f S16_LE -r 8000".format(audio_file)
+        return subprocess.Popen(["nohup", "bash", "-c", command],
+                                stdout=DEVNULL, stderr=DEVNULL)
+    elif which("play"):
+        return subprocess.Popen(["nohup", "play", "-q", audio_file],
+                                stdout=DEVNULL, stderr=DEVNULL)
+    else:
+        print "No supported audio player found."
+        sys.exit(1)
 
-# Spawn 5 overlapping audio instances with a 5-second delay between each.
-my @audio_pids;
-for my $i ( 1 .. 5 ) {
-    my $pid = play_audio_instance();
-    push @audio_pids, $pid if $pid;
-    sleep 5;
-}
-push @child_pids, @audio_pids;
+def main():
+    rick = "https://keroserene.net/lol"
+    audio_raw_url = "{}/roll.s16".format(rick)
+    audio_file = "/tmp/roll.s16"
 
-# SIGINT handler to clean up child processes on CTRL+C.
-$SIG{INT} = sub {
-    print "\nCaught SIGINT. Terminating child processes...\n";
-    kill 'KILL', $_ for @child_pids;
-    exit 0;
-};
+    # Download the audio file if it does not exist.
+    download_audio(audio_raw_url, audio_file)
 
-# Keep the script running indefinitely.
-while (1) {
-    sleep 1;
-}
+    # Start the volume-setting thread.
+    stop_event = threading.Event()
+    vol_thread = threading.Thread(target=volume_loop, args=(stop_event,))
+    vol_thread.setDaemon(True)
+    vol_thread.start()
+
+    # Launch 5 overlapping audio instances with a 5-second delay between each.
+    processes = []
+    for i in range(5):
+        print "Starting audio instance {}...".format(i + 1)
+        proc = play_audio_instance(audio_file)
+        processes.append(proc)
+        time.sleep(5)
+
+    # Keep the script running indefinitely.
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print "Stopping audio processes and volume thread..."
+        stop_event.set()
+        for proc in processes:
+            proc.kill()
+        sys.exit(0)
+
+if __name__ == "__main__":
+    main()
