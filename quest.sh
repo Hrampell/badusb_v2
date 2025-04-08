@@ -98,9 +98,9 @@ def run_secret_script
 end
 
 # --- Subscriber Action ---
-# For subscribers: process button selection.
 def subscriber_action(choice)
-  case choice.downcase
+  ch = choice.strip.downcase
+  case ch
   when "hawk"
     run_secret_script
   when "tuah"
@@ -108,7 +108,7 @@ def subscriber_action(choice)
   when "sydney lover"
     trigger_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
   else
-    puts "Unexpected button choice."
+    puts "Unexpected button choice: #{choice}"
   end
 end
 
@@ -122,14 +122,14 @@ if subscribed.nil?
 end
 
 if subscribed.downcase == "no"
-  # Non-subscriber: immediately play jumpscare using jumpscare2.mp4.
+  # Non-subscriber branch: immediately play jumpscare using jumpscare2.mp4.
   sleep 1
   video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
   trigger_jumpscare(video_url)
   system("killall Terminal")
   exit 0
 else
-  # Subscriber branch: show a dialog with three buttons.
+  # Subscriber branch: show a dialog with three buttons: "Sydney lover", "Hawk", "Tuah"
   button_choice = display_dialog("Choose a button:", ["Sydney lover", "Hawk", "Tuah"], "Hawk")
   if button_choice.nil?
     puts "No button chosen. Exiting."
