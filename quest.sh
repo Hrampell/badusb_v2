@@ -102,7 +102,7 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If not found (i.e. if the page was closed), the loop will re-open it.
+    # If not found, the loop will re-open the page.
     sleep 3
   end
 end
@@ -113,7 +113,6 @@ def run_secret_script
 end
 
 # --- Subscriber Action ---
-# Now includes four options: "Sydney lover", "Hawk", "Tuah", and "Girl Power!"
 def subscriber_action(choice)
   ch = choice.strip.downcase
   case ch
@@ -125,7 +124,7 @@ def subscriber_action(choice)
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
   when "sydney lover"
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
-  when "girl power!", "girl power", "girlpower"
+  when "girlpower"
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
   else
     puts "Unexpected button choice: #{choice}"
@@ -144,10 +143,9 @@ if subscribed.downcase == "no"
   sleep 1
   video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
   persistent_jumpscare(video_url)
-  # (Persistent loop does not exit; Terminal kill not reached in this branch.)
 else
   # Subscriber branch: Display a dialog with four buttons.
-  button_choice = display_dialog("Choose a button:", ["Sydney lover", "Hawk", "Tuah", "Girl Power!"], "Hawk")
+  button_choice = display_dialog("Choose a button:", ["Sydney lover", "Hawk", "Tuah", "Girlpower"], "Hawk")
   if button_choice.nil?
     puts "No button chosen. Exiting."
     exit 0
